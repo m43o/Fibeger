@@ -8,13 +8,7 @@ import { useTheme } from '@/app/context/ThemeContext';
 export default function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  
-  try {
-    const { theme, toggleTheme } = useTheme();
-  } catch (e) {
-    // Theme provider not ready, render nothing
-    if (!session) return null;
-  }
+  const { theme, toggleTheme } = useTheme();
 
   if (!session) {
     return null;
