@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { eventManager } from "@/app/lib/events";
 
 // POST - Add member to group (admin only)
 export async function POST(
@@ -108,7 +109,7 @@ export async function POST(
     });
 
     // Create notification for the added user
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: newUserId,
         type: "group_invite",
@@ -117,6 +118,9 @@ export async function POST(
         link: `/messages?group=${groupChatId}`,
       },
     });
+
+    // Emit real-time notification event
+    eventManager.emit(newUserId, 'notification', notification);
 
     return NextResponse.json(newMember);
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { eventManager } from "@/app/lib/events";
 
 // GET - Fetch all notifications for the current user
 export async function GET(req: Request) {
@@ -71,6 +72,9 @@ export async function POST(req: Request) {
         link,
       },
     });
+
+    // Emit real-time notification event
+    eventManager.emit(userId, 'notification', notification);
 
     return NextResponse.json(notification, { status: 201 });
   } catch (error) {
