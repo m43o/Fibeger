@@ -109,16 +109,16 @@ export default function Sidebar() {
       }
     };
 
-    on('conversation_update', handleConversationUpdate);
-    on('group_update', handleGroupUpdate);
-    on('message', handleMessage);
+    const unsubConversation = on('conversation_update', handleConversationUpdate);
+    const unsubGroup = on('group_update', handleGroupUpdate);
+    const unsubMessage = on('message', handleMessage);
 
     return () => {
-      off('conversation_update', handleConversationUpdate);
-      off('group_update', handleGroupUpdate);
-      off('message', handleMessage);
+      unsubConversation();
+      unsubGroup();
+      unsubMessage();
     };
-  }, [on, off, session]);
+  }, [on, session]);
 
   const fetchConversations = async () => {
     try {

@@ -137,9 +137,9 @@ export default function NotificationBell() {
       fetchNotifications();
     };
 
-    on('notification', handleNotification);
-    return () => off('notification', handleNotification);
-  }, [on, off]);
+    const unsubscribe = on('notification', handleNotification);
+    return unsubscribe;
+  }, [on]);
 
   return (
     <div className="relative" ref={dropdownRef}>

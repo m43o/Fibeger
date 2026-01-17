@@ -270,15 +270,16 @@ function MessagesContent() {
       );
     };
 
-    on('message', handleMessage);
-    on('typing', handleTyping);
-    on('reaction', handleReaction);
+    const unsubMessage = on('message', handleMessage);
+    const unsubTyping = on('typing', handleTyping);
+    const unsubReaction = on('reaction', handleReaction);
+    
     return () => {
-      off('message', handleMessage);
-      off('typing', handleTyping);
-      off('reaction', handleReaction);
+      unsubMessage();
+      unsubTyping();
+      unsubReaction();
     };
-  }, [on, off, dmId, groupId]);
+  }, [on, dmId, groupId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
