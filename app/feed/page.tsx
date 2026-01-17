@@ -262,7 +262,7 @@ export default function FeedPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
             {posts.map((post) => (
               <div
                 key={post.id}
@@ -384,8 +384,9 @@ export default function FeedPage() {
             {/* Close button */}
             <button
               onClick={() => setSelectedPost(null)}
-              className="absolute top-4 right-4 z-10 p-2 rounded-full transition hover:bg-gray-700"
-              style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+              className="absolute top-4 left-4 z-20 p-2 rounded-full transition hover:bg-gray-700"
+              style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+              title="Close"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12"/>
@@ -413,7 +414,7 @@ export default function FeedPage() {
 
               {/* Info Section */}
               <div className="lg:w-96 p-6 flex flex-col">
-                {/* User Info */}
+                {/* User Info and Delete Button */}
                 <div className="flex items-center gap-3 mb-6 pb-6" style={{ borderBottom: '1px solid #404249' }}>
                   <Link href={`/profile/${selectedPost.user.username}`} onClick={() => setSelectedPost(null)}>
                     {selectedPost.user.avatar ? (
@@ -431,16 +432,16 @@ export default function FeedPage() {
                       </div>
                     )}
                   </Link>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <Link 
                       href={`/profile/${selectedPost.user.username}`} 
                       onClick={() => setSelectedPost(null)}
                       className="block"
                     >
-                      <p className="font-semibold hover:underline" style={{ color: '#f2f3f5' }}>
+                      <p className="font-semibold hover:underline truncate" style={{ color: '#f2f3f5' }}>
                         {selectedPost.user.nickname || selectedPost.user.username}
                       </p>
-                      <p className="text-sm" style={{ color: '#949ba4' }}>
+                      <p className="text-sm truncate" style={{ color: '#949ba4' }}>
                         @{selectedPost.user.username}
                       </p>
                     </Link>
@@ -451,10 +452,10 @@ export default function FeedPage() {
                         setSelectedPost(null);
                         handleDelete(selectedPost.id);
                       }}
-                      className="p-2 rounded hover:bg-red-500/20 transition"
+                      className="p-2 rounded hover:bg-red-500/20 transition flex-shrink-0"
                       title="Delete post"
                     >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#f23f42">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="#f23f42">
                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                       </svg>
                     </button>
