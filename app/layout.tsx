@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fibeger - Social Media",
+  title: "Fibeger",
   description: "Share your moments with Fibeger",
 };
 
