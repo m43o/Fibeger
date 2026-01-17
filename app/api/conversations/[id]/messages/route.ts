@@ -79,7 +79,13 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(messages);
+    // Parse attachments from JSON strings to arrays
+    const messagesWithParsedAttachments = messages.map(msg => ({
+      ...msg,
+      attachments: msg.attachments ? JSON.parse(msg.attachments) : null
+    }));
+
+    return NextResponse.json(messagesWithParsedAttachments);
   } catch (error) {
     console.error("Get messages error:", error);
     return NextResponse.json(
@@ -223,12 +229,18 @@ export async function POST(
     const notifications = await Promise.all(notificationPromises);
     console.log('Notifications created, returning response');
 
+    // Parse attachments from JSON string to array for real-time events
+    const messageWithParsedAttachments = {
+      ...message,
+      attachments: message.attachments ? JSON.parse(message.attachments) : null
+    };
+
     // Emit real-time events to all conversation members
     // Send message event to other members
     members.forEach((member) => {
       eventManager.emit(member.userId, 'message', {
         conversationId,
-        message,
+        message: messageWithParsedAttachments,
       });
     });
 
@@ -245,11 +257,11 @@ export async function POST(
     allMembers.forEach((member) => {
       eventManager.emit(member.userId, 'conversation_update', {
         conversationId,
-        lastMessage: message,
+        lastMessage: messageWithParsedAttachments,
       });
     });
 
-    return NextResponse.json(message);
+    return NextResponse.json(messageWithParsedAttachments);
   } catch (error) {
     console.error("Create message error:", error);
     console.error("Error details:", error instanceof Error ? error.message : String(error));
