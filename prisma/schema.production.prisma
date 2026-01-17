@@ -35,6 +35,8 @@ model User {
   themeColor            String?               // Custom accent color (hex code)
   interests             String?               // JSON array of interests/tags
   personalityBadge      String?               // Personality test result badge
+  notificationSoundsEnabled Boolean           @default(true)        // Whether notification sounds are enabled
+  browserNotificationsEnabled Boolean         @default(false)       // Whether browser notifications are enabled
   
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt

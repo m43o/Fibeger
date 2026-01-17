@@ -148,6 +148,7 @@ function MessagesContent() {
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [viewingMedia, setViewingMedia] = useState<{ url: string; type: string; name: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -341,6 +342,27 @@ function MessagesContent() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle ESC key to close media viewer and lock body scroll
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && viewingMedia) {
+        setViewingMedia(null);
+      }
+    };
+
+    if (viewingMedia) {
+      // Lock body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      // Restore body scroll when modal closes
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [viewingMedia]);
 
   const fetchConversation = async (id: number) => {
     try {
@@ -1044,6 +1066,60 @@ function MessagesContent() {
             )}
           </div>
 
+          {/* Media Viewer Modal */}
+          {viewingMedia && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+              onClick={() => setViewingMedia(null)}
+            >
+              <button
+                onClick={() => setViewingMedia(null)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-800 transition z-10"
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', color: 'white' }}
+                title="Close"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+              
+              <div 
+                className="max-w-7xl max-h-[90vh] w-full mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {viewingMedia.type.startsWith('image/') ? (
+                  <img
+                    src={viewingMedia.url}
+                    alt={viewingMedia.name}
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                ) : viewingMedia.type.startsWith('video/') ? (
+                  <video
+                    src={viewingMedia.url}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                ) : null}
+                
+                <div className="mt-4 text-center">
+                  <p className="text-sm" style={{ color: '#b5bac1' }}>
+                    {viewingMedia.name}
+                  </p>
+                  <a
+                    href={viewingMedia.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm hover:underline mt-2 inline-block"
+                    style={{ color: '#00a8fc' }}
+                  >
+                    Open in new tab
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Group Settings Modal - Only for groups */}
           {showGroupSettings && groupChat && (
             <div 
@@ -1467,19 +1543,30 @@ function MessagesContent() {
                                     return (
                                       <div key={idx} className="max-w-sm">
                                         {isImage ? (
-                                          <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-                                            <img
-                                              src={attachment.url}
-                                              alt={attachment.name}
-                                              className="rounded-lg max-h-80 cursor-pointer hover:opacity-90 transition"
-                                            />
-                                          </a>
-                                        ) : isVideo ? (
-                                          <video
+                                          <img
                                             src={attachment.url}
-                                            controls
-                                            className="rounded-lg max-h-80 max-w-full"
+                                            alt={attachment.name}
+                                            className="rounded-lg max-h-80 cursor-pointer hover:opacity-90 transition"
+                                            onClick={() => setViewingMedia({ url: attachment.url, type: attachment.type, name: attachment.name })}
                                           />
+                                        ) : isVideo ? (
+                                          <div className="relative">
+                                            <video
+                                              src={attachment.url}
+                                              controls
+                                              className="rounded-lg max-h-80 max-w-full"
+                                            />
+                                            <button
+                                              onClick={() => setViewingMedia({ url: attachment.url, type: attachment.type, name: attachment.name })}
+                                              className="absolute top-2 right-2 p-2 rounded-full hover:bg-black hover:bg-opacity-50 transition"
+                                              style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
+                                              title="View fullscreen"
+                                            >
+                                              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                                <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                                              </svg>
+                                            </button>
+                                          </div>
                                         ) : null}
                                       </div>
                                     );

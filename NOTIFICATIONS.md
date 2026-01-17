@@ -187,12 +187,25 @@ Get the count of unread notifications for a user.
 
 See [REALTIME.md](./REALTIME.md) for complete documentation on the real-time event system.
 
+## Browser Notifications
+
+✅ **Now Implemented!** Users can enable native OS-level browser notifications.
+
+See [docs/browser-notifications.md](./docs/browser-notifications.md) for complete documentation on browser notifications.
+
+**Features:**
+- Native Windows/Mac/Linux notifications
+- Click to navigate functionality
+- User-controlled via profile settings
+- Respects browser permissions
+- Integrates with SSE system
+
 ## Future Enhancements
 
 Potential improvements to consider:
-- Push notifications for mobile devices (PWA)
+- Push notifications for mobile devices (PWA with Service Workers)
 - Email notifications for important events
-- Notification preferences/settings
 - Notification grouping (e.g., "5 new messages")
-- Notification sound effects
 - Notification history/archive
+- Do Not Disturb mode with scheduled quiet hours
+- Granular notification preferences (per type)

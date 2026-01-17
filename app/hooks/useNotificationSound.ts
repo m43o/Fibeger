@@ -1,17 +1,40 @@
 'use client';
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 /**
  * Hook for playing notification sounds
  * 
  * Manages audio playback with proper cleanup and error handling.
  * Falls back to Web Audio API beep if notification file is not available.
+ * Respects user's notification sound preference from their profile settings.
  */
 export function useNotificationSound() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const useWebAudioFallback = useRef(false);
+  const [notificationSoundsEnabled, setNotificationSoundsEnabled] = useState(true);
+  const { data: session } = useSession();
+
+  // Fetch user's notification sound preference
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const fetchPreference = async () => {
+      try {
+        const res = await fetch('/api/profile');
+        if (res.ok) {
+          const data = await res.json();
+          setNotificationSoundsEnabled(data.notificationSoundsEnabled ?? true);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notification preference:', error);
+      }
+    };
+
+    fetchPreference();
+  }, [session?.user?.id]);
 
   // Initialize audio on mount
   useEffect(() => {
@@ -83,6 +106,11 @@ export function useNotificationSound() {
    * Play the notification sound
    */
   const playSound = useCallback(() => {
+    // Don't play if user has disabled notification sounds
+    if (!notificationSoundsEnabled) {
+      return;
+    }
+
     // Use Web Audio API fallback if file didn't load
     if (useWebAudioFallback.current) {
       playWebAudioBeep();
@@ -109,7 +137,7 @@ export function useNotificationSound() {
       console.error('Error playing notification sound:', error);
       playWebAudioBeep();
     }
-  }, [playWebAudioBeep]);
+  }, [playWebAudioBeep, notificationSoundsEnabled]);
 
   /**
    * Set the volume (0.0 to 1.0)

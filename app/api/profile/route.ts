@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
         themeColor: true,
         interests: true,
         personalityBadge: true,
+        notificationSoundsEnabled: true,
+        browserNotificationsEnabled: true,
         createdAt: true,
       },
     });
@@ -72,7 +74,9 @@ export async function PUT(req: NextRequest) {
       socialLinks,
       status,
       themeColor,
-      interests
+      interests,
+      notificationSoundsEnabled,
+      browserNotificationsEnabled
     } = body;
 
     // Validate character limits
@@ -132,6 +136,8 @@ export async function PUT(req: NextRequest) {
     if (status !== undefined) updates.status = status;
     if (themeColor !== undefined) updates.themeColor = themeColor;
     if (interests !== undefined) updates.interests = interests;
+    if (notificationSoundsEnabled !== undefined) updates.notificationSoundsEnabled = notificationSoundsEnabled;
+    if (browserNotificationsEnabled !== undefined) updates.browserNotificationsEnabled = browserNotificationsEnabled;
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
@@ -160,6 +166,8 @@ export async function PUT(req: NextRequest) {
         themeColor: true,
         interests: true,
         personalityBadge: true,
+        notificationSoundsEnabled: true,
+        browserNotificationsEnabled: true,
       },
     });
 
@@ -171,4 +179,9 @@ export async function PUT(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// PATCH method to update individual fields (used by hooks)
+export async function PATCH(req: NextRequest) {
+  return PUT(req);
 }

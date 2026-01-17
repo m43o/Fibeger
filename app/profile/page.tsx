@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import PersonalityTestModal from '../components/PersonalityTestModal';
 import FlagEmoji from '../components/FlagEmoji';
 import personalityTestData from '../lib/personalityTest.json';
+import { useBrowserNotifications } from '../hooks/useBrowserNotifications';
 
 interface UserProfile {
   id: number;
@@ -26,6 +27,8 @@ interface UserProfile {
   themeColor: string | null;
   interests: string | null;
   personalityBadge: string | null;
+  notificationSoundsEnabled: boolean;
+  browserNotificationsEnabled: boolean;
 }
 
 interface SocialLinks {
@@ -46,6 +49,7 @@ interface Badge {
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { isSupported: browserNotificationsSupported, permission: browserNotificationPermission, requestPermission } = useBrowserNotifications();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -72,6 +76,8 @@ export default function ProfilePage() {
     instagram: '',
     linkedin: '',
     interests: [] as string[],
+    notificationSoundsEnabled: true,
+    browserNotificationsEnabled: false,
   });
   const [newInterest, setNewInterest] = useState('');
 
@@ -125,6 +131,8 @@ export default function ProfilePage() {
           instagram: socialLinks.instagram || '',
           linkedin: socialLinks.linkedin || '',
           interests: interests,
+          notificationSoundsEnabled: data.notificationSoundsEnabled ?? true,
+          browserNotificationsEnabled: data.browserNotificationsEnabled ?? false,
         });
       }
     } catch (error) {
@@ -159,6 +167,8 @@ export default function ProfilePage() {
           themeColor: formData.themeColor,
           socialLinks: JSON.stringify(socialLinks),
           interests: JSON.stringify(formData.interests),
+          notificationSoundsEnabled: formData.notificationSoundsEnabled,
+          browserNotificationsEnabled: formData.browserNotificationsEnabled,
         }),
       });
 
@@ -1023,6 +1033,88 @@ export default function ProfilePage() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Privacy & Preferences */}
+                  <div className="space-y-5 pt-6 border-t" style={{ borderColor: 'var(--bg-primary)' }}>
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Privacy & Preferences</h3>
+                    
+                    <div className="flex items-center justify-between p-5 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                      <div className="flex-1">
+                        <label className="block text-base font-medium mb-1 cursor-pointer" style={{ color: 'var(--text-primary)' }}>
+                          🔔 Notification Sounds
+                        </label>
+                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                          Play a sound when you receive new messages or notifications
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, notificationSoundsEnabled: !formData.notificationSoundsEnabled })}
+                        className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        style={{ 
+                          backgroundColor: formData.notificationSoundsEnabled ? formData.themeColor : 'var(--text-tertiary)'
+                        }}
+                      >
+                        <span
+                          className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                            formData.notificationSoundsEnabled ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-5 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                      <div className="flex-1">
+                        <label className="block text-base font-medium mb-1 cursor-pointer" style={{ color: 'var(--text-primary)' }}>
+                          🖥️ Browser Notifications
+                        </label>
+                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                          {browserNotificationsSupported 
+                            ? 'Show native notifications even when the tab is not focused' 
+                            : 'Not supported in your browser'}
+                        </p>
+                        {browserNotificationsSupported && browserNotificationPermission === 'denied' && (
+                          <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--danger)' }}>
+                            Permission denied. Please enable in your browser settings.
+                          </p>
+                        )}
+                        {browserNotificationsSupported && browserNotificationPermission === 'default' && formData.browserNotificationsEnabled && (
+                          <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--warning)' }}>
+                            Click the toggle to request browser permission.
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!browserNotificationsSupported) return;
+                          
+                          const newValue = !formData.browserNotificationsEnabled;
+                          
+                          // If enabling and we don't have permission, request it
+                          if (newValue && browserNotificationPermission !== 'granted') {
+                            const result = await requestPermission();
+                            if (result !== 'granted') {
+                              return; // Don't enable if permission denied
+                            }
+                          }
+                          
+                          setFormData({ ...formData, browserNotificationsEnabled: newValue });
+                        }}
+                        disabled={!browserNotificationsSupported || browserNotificationPermission === 'denied'}
+                        className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ 
+                          backgroundColor: (formData.browserNotificationsEnabled && browserNotificationsSupported) ? formData.themeColor : 'var(--text-tertiary)'
+                        }}
+                      >
+                        <span
+                          className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                            formData.browserNotificationsEnabled ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
 
