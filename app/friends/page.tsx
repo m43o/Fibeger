@@ -24,6 +24,7 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserPreview[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [friends, setFriends] = useState<UserPreview[]>([]);
   const [message, setMessage] = useState('');
   const [searching, setSearching] = useState(false);
 
@@ -34,6 +35,7 @@ export default function FriendsPage() {
     }
 
     fetchFriendRequests();
+    fetchFriends();
   }, [session, router]);
 
   const fetchFriendRequests = async () => {
@@ -45,6 +47,18 @@ export default function FriendsPage() {
       }
     } catch (error) {
       console.error('Failed to load friend requests');
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data);
+      }
+    } catch (error) {
+      console.error('Failed to load friends');
     }
   };
 
@@ -107,6 +121,9 @@ export default function FriendsPage() {
       if (res.ok) {
         setMessage(action === 'accept' ? '✓ Friend added!' : '✗ Request rejected');
         fetchFriendRequests();
+        if (action === 'accept') {
+          fetchFriends();
+        }
         setTimeout(() => setMessage(''), 3000);
       } else {
         setMessage('Failed to respond to request');
@@ -128,6 +145,57 @@ export default function FriendsPage() {
               color: '#ffffff'
             }}>
             {message}
+          </div>
+        )}
+
+        {/* Friends List */}
+        {friends.length > 0 && (
+          <div className="rounded-lg p-10 mb-8" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Your Friends</h2>
+            <p className="mb-10 font-medium text-lg" style={{ color: 'var(--text-secondary)' }}>
+              You have {friends.length} friend{friends.length !== 1 ? 's' : ''}
+            </p>
+            <div className="space-y-4">
+              {friends.map((friend) => (
+                <div
+                  key={friend.id}
+                  className="flex items-center justify-between p-5 rounded-lg transition hover:opacity-80"
+                  style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                >
+                  <div className="flex items-center gap-4">
+                    {friend.avatar ? (
+                      <img
+                        src={friend.avatar}
+                        alt={friend.username}
+                        className="w-14 h-14 rounded-full object-cover border-2"
+                        style={{ borderColor: 'var(--border-color)' }}
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: 'var(--accent)' }}>
+                        {friend.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <button
+                        onClick={() => router.push(`/profile/${friend.username}`)}
+                        className="font-semibold hover:underline text-left text-lg"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        {friend.nickname || friend.username}
+                      </button>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>@{friend.username}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/messages`)}
+                    className="px-5 py-2.5 text-white text-sm font-medium rounded-md transition hover:opacity-90"
+                    style={{ backgroundColor: 'var(--accent)' }}
+                  >
+                    Message
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

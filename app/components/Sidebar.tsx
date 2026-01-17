@@ -3,25 +3,154 @@
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+
+interface User {
+  id: number;
+  username: string;
+  nickname: string | null;
+  avatar: string | null;
+}
+
+interface Message {
+  id: number;
+  content: string;
+  sender: User;
+  createdAt: string;
+}
+
+interface Conversation {
+  id: number;
+  members: { user: User }[];
+  messages: Message[];
+}
+
+interface GroupChat {
+  id: number;
+  name: string;
+  description: string | null;
+  avatar: string | null;
+  members: { user: User; role: string }[];
+  messages: Message[];
+}
 
 export default function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
+  const [showDMs, setShowDMs] = useState(true);
+  const [showGroups, setShowGroups] = useState(true);
+  const [friends, setFriends] = useState<User[]>([]);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [creatingConversation, setCreatingConversation] = useState(false);
+
+  useEffect(() => {
+    if (session) {
+      fetchConversations();
+      fetchGroupChats();
+      fetchFriends();
+      const interval = setInterval(() => {
+        fetchConversations();
+        fetchGroupChats();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [session]);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/conversations');
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data);
+      }
+    } catch (error) {
+      console.error('Failed to load conversations');
+    }
+  };
+
+  const fetchGroupChats = async () => {
+    try {
+      const res = await fetch('/api/groupchats');
+      if (res.ok) {
+        const data = await res.json();
+        setGroupChats(data);
+      }
+    } catch (error) {
+      console.error('Failed to load group chats');
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data);
+      }
+    } catch (error) {
+      console.error('Failed to load friends');
+    }
+  };
+
+  const handleStartConversation = async (friendId: number) => {
+    setCreatingConversation(true);
+    try {
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ friendId }),
+      });
+
+      if (res.ok) {
+        const conversation = await res.json();
+        await fetchConversations();
+        setShowNewConversation(false);
+        router.push(`/messages?dm=${conversation.id}`);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to create conversation');
+      }
+    } catch (error) {
+      console.error('Failed to create conversation');
+      alert('Failed to create conversation');
+    } finally {
+      setCreatingConversation(false);
+    }
+  };
+
+  const getOtherUser = (conversation: Conversation): User | null => {
+    const userId = parseInt((session?.user as any)?.id || '0');
+    return conversation.members.find((m) => m.user.id !== userId)?.user || null;
+  };
+
+  const getFriendsWithoutConversation = () => {
+    const conversationFriendIds = conversations.map(conv => {
+      const otherUser = getOtherUser(conv);
+      return otherUser?.id;
+    });
+    return friends.filter(friend => !conversationFriendIds.includes(friend.id));
+  };
 
   if (!session) {
     return null;
   }
 
   const isActive = (href: string) => pathname === href;
+  const isMessageActive = (id: number, type: 'dm' | 'group') => {
+    if (pathname !== '/messages') return false;
+    const params = new URLSearchParams(window.location.search);
+    const dmId = params.get('dm');
+    const groupId = params.get('group');
+    if (type === 'dm') return dmId === id.toString();
+    return groupId === id.toString();
+  };
 
   const navItems = [
     { href: '/friends', label: 'Friends', icon: '👥' },
   ];
-
-  const handleStartConversation = () => {
-    router.push('/messages');
-  };
 
   return (
     <aside 
@@ -66,14 +195,28 @@ export default function Sidebar() {
           ))}
         </div>
 
-        {/* Direct Messages Label */}
-        <div className="mt-4 mb-2 px-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#949ba4' }}>
-              Direct Messages
-            </span>
+        {/* Direct Messages Accordion */}
+        <div className="mt-4">
+          <div className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-700 transition">
+            <button
+              onClick={() => setShowDMs(!showDMs)}
+              className="flex items-center gap-2 flex-1"
+            >
+              <span 
+                className="text-xs transition-transform"
+                style={{ color: '#949ba4', transform: showDMs ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              >
+                ▶
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#949ba4' }}>
+                Direct Messages
+              </span>
+            </button>
             <button 
-              onClick={handleStartConversation}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNewConversation(!showNewConversation);
+              }}
               className="text-lg hover:text-white transition" 
               style={{ color: '#949ba4' }}
               title="Start a conversation"
@@ -81,6 +224,198 @@ export default function Sidebar() {
               +
             </button>
           </div>
+
+          {showNewConversation && (
+            <div className="px-2 py-2 mb-2" style={{ backgroundColor: '#1e1f22', borderRadius: '4px' }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold" style={{ color: '#f2f3f5' }}>Select a Friend</span>
+                <button
+                  onClick={() => setShowNewConversation(false)}
+                  className="text-lg hover:text-white transition"
+                  style={{ color: '#949ba4' }}
+                >
+                  ×
+                </button>
+              </div>
+              {getFriendsWithoutConversation().length === 0 ? (
+                <div className="text-center py-2">
+                  <p className="text-xs mb-1" style={{ color: '#949ba4' }}>
+                    No friends available
+                  </p>
+                  <Link
+                    href="/friends"
+                    className="text-xs font-semibold hover:underline"
+                    style={{ color: '#00a8fc' }}
+                  >
+                    Add friends
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {getFriendsWithoutConversation().map((friend) => (
+                    <button
+                      key={friend.id}
+                      onClick={() => handleStartConversation(friend.id)}
+                      disabled={creatingConversation}
+                      className="w-full p-1.5 rounded flex items-center gap-2 transition hover:bg-gray-700"
+                      style={{ backgroundColor: 'transparent' }}
+                    >
+                      {friend.avatar ? (
+                        <img
+                          src={friend.avatar}
+                          alt={friend.username}
+                          className="w-6 h-6 rounded-full"
+                        />
+                      ) : (
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-white font-semibold text-xs"
+                          style={{ backgroundColor: '#5865f2' }}
+                        >
+                          {friend.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-sm truncate" style={{ color: '#f2f3f5' }}>
+                        {friend.nickname || friend.username}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showDMs && (
+            <div className="mt-1 space-y-0.5">
+              {conversations.length === 0 ? (
+                <div className="px-2 py-1">
+                  <p className="text-xs" style={{ color: '#949ba4' }}>No conversations yet</p>
+                </div>
+              ) : (
+                conversations.map((conv) => {
+                  const otherUser = getOtherUser(conv);
+                  const isConvActive = isMessageActive(conv.id, 'dm');
+                  
+                  return (
+                    <Link
+                      key={conv.id}
+                      href={`/messages?dm=${conv.id}`}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded transition-all"
+                      style={{
+                        backgroundColor: isConvActive ? '#404249' : 'transparent',
+                        color: isConvActive ? '#ffffff' : '#949ba4',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isConvActive) {
+                          e.currentTarget.style.backgroundColor = '#35373c';
+                          e.currentTarget.style.color = '#dbdee1';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isConvActive) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#949ba4';
+                        }
+                      }}
+                    >
+                      {otherUser?.avatar ? (
+                        <img
+                          src={otherUser.avatar}
+                          alt={otherUser.username}
+                          className="w-8 h-8 rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                          style={{ backgroundColor: '#5865f2' }}
+                        >
+                          {(otherUser?.username?.charAt(0) || 'U').toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-sm truncate flex-1">
+                        {otherUser?.nickname || otherUser?.username}
+                      </span>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Groups Accordion */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowGroups(!showGroups)}
+            className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-700 transition"
+          >
+            <div className="flex items-center gap-2">
+              <span 
+                className="text-xs transition-transform"
+                style={{ color: '#949ba4', transform: showGroups ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              >
+                ▶
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#949ba4' }}>
+                Groups
+              </span>
+            </div>
+          </button>
+
+          {showGroups && (
+            <div className="mt-1 space-y-0.5">
+              {groupChats.length === 0 ? (
+                <div className="px-2 py-1">
+                  <p className="text-xs" style={{ color: '#949ba4' }}>No groups yet</p>
+                </div>
+              ) : (
+                groupChats.map((group) => {
+                  const isGroupActive = isMessageActive(group.id, 'group');
+                  
+                  return (
+                    <Link
+                      key={group.id}
+                      href={`/messages?group=${group.id}`}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded transition-all"
+                      style={{
+                        backgroundColor: isGroupActive ? '#404249' : 'transparent',
+                        color: isGroupActive ? '#ffffff' : '#949ba4',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isGroupActive) {
+                          e.currentTarget.style.backgroundColor = '#35373c';
+                          e.currentTarget.style.color = '#dbdee1';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isGroupActive) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#949ba4';
+                        }
+                      }}
+                    >
+                      {group.avatar ? (
+                        <img
+                          src={group.avatar}
+                          alt={group.name}
+                          className="w-8 h-8 rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                          style={{ backgroundColor: '#5865f2' }}
+                        >
+                          {group.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-sm truncate flex-1">
+                        {group.name}
+                      </span>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       </nav>
 
@@ -90,12 +425,20 @@ export default function Sidebar() {
         padding: '10px 8px',
       }}>
         <div className="flex items-center gap-2 px-2">
-          <div 
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
-            style={{ backgroundColor: '#5865f2', color: '#ffffff' }}
-          >
-            {((session.user as any)?.username?.[0] || session.user?.email?.[0] || 'U').toUpperCase()}
-          </div>
+          {(session.user as any)?.avatar ? (
+            <img 
+              src={(session.user as any).avatar}
+              alt="Your avatar"
+              className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+            />
+          ) : (
+            <div 
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
+              style={{ backgroundColor: '#5865f2', color: '#ffffff' }}
+            >
+              {((session.user as any)?.username?.[0] || session.user?.email?.[0] || 'U').toUpperCase()}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold truncate" style={{ color: '#f2f3f5' }}>
               {(session.user as any)?.username || session.user?.email}
