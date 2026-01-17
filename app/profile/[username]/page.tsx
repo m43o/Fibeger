@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import personalityTestData from '@/app/lib/personalityTest.json';
 
 interface UserProfile {
   id: number;
@@ -23,6 +24,7 @@ interface UserProfile {
   status: string | null;
   themeColor: string | null;
   interests: string | null;
+  personalityBadge: string | null;
 }
 
 interface SocialLinks {
@@ -30,6 +32,14 @@ interface SocialLinks {
   github?: string;
   instagram?: string;
   linkedin?: string;
+}
+
+interface Badge {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  color: string;
 }
 
 export default function UserProfilePage() {
@@ -44,11 +54,34 @@ export default function UserProfilePage() {
 
   const getCountryFlag = (countryCode: string | null) => {
     if (!countryCode) return '';
-    const codePoints = countryCode
-      .toUpperCase()
-      .split('')
-      .map(char => 127397 + char.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
+    // Ensure we have a valid 2-letter country code
+    const code = countryCode.toUpperCase().trim();
+    if (code.length !== 2) return countryCode; // Return original if invalid
+    
+    try {
+      // Convert country code to flag emoji
+      // A = 65, Regional Indicator A = 127462, offset = 127397
+      const codePoints = code
+        .split('')
+        .map(char => {
+          const charCode = char.charCodeAt(0);
+          // Validate it's A-Z
+          if (charCode < 65 || charCode > 90) return null;
+          return 127397 + charCode;
+        })
+        .filter(cp => cp !== null) as number[];
+      
+      if (codePoints.length !== 2) return countryCode;
+      return String.fromCodePoint(...codePoints);
+    } catch (error) {
+      console.error('Error converting country code to flag:', error);
+      return countryCode; // Fallback to showing the code
+    }
+  };
+
+  const getUserBadge = () => {
+    if (!profile?.personalityBadge) return null;
+    return personalityTestData.badges.find((b) => b.id === profile.personalityBadge);
   };
 
   const countries = [
@@ -375,6 +408,33 @@ export default function UserProfilePage() {
                           );
                         }
                       } catch {}
+                      return null;
+                    })()}
+
+                    {/* Personality Badge */}
+                    {(() => {
+                      const badge = getUserBadge();
+                      if (badge) {
+                        return (
+                          <div 
+                            className="mt-4 px-4 py-3 rounded-lg inline-flex items-center gap-3"
+                            style={{ 
+                              backgroundColor: `${badge.color}20`,
+                              border: `2px solid ${badge.color}`
+                            }}
+                          >
+                            <span className="text-3xl">{badge.emoji}</span>
+                            <div>
+                              <p className="font-bold text-sm" style={{ color: badge.color }}>
+                                {badge.name}
+                              </p>
+                              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                {badge.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
                       return null;
                     })()}
                   </div>

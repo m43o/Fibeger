@@ -34,6 +34,7 @@ model User {
   status                String?               // Custom status message (max 100 chars)
   themeColor            String?               // Custom accent color (hex code)
   interests             String?               // JSON array of interests/tags
+  personalityBadge      String?               // Personality test result badge
   
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt

@@ -5,7 +5,7 @@ import { prisma } from '@/app/lib/prisma';
 
 const MAX_CAPTION_LENGTH = 500;
 
-// GET - Fetch all feed posts (public for all users)
+// GET - Fetch feed posts from friends and own posts
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -13,7 +13,27 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userId = parseInt((session.user as any).id);
+
+    // Get all friend IDs for the current user
+    const friends = await prisma.friend.findMany({
+      where: {
+        userId: userId,
+      },
+      select: {
+        friendId: true,
+      },
+    });
+
+    const friendIds = friends.map(f => f.friendId);
+
+    // Fetch posts from the user and their friends
     const posts = await prisma.feedPost.findMany({
+      where: {
+        userId: {
+          in: [userId, ...friendIds],
+        },
+      },
       include: {
         user: {
           select: {

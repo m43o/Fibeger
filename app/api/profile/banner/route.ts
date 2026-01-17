@@ -70,8 +70,13 @@ export async function POST(req: NextRequest) {
     const filepath = join(uploadDir, filename);
 
     // Ensure directory exists
-    const { mkdirSync } = await import("fs");
-    mkdirSync(uploadDir, { recursive: true });
+    try {
+      const { mkdirSync } = await import("fs");
+      mkdirSync(uploadDir, { recursive: true });
+    } catch (dirError) {
+      console.error("Error creating directory:", dirError);
+      // Directory might already exist, continue
+    }
 
     // Write file
     await writeFile(filepath, buffer);

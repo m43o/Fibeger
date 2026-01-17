@@ -3,6 +3,8 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import PersonalityTestModal from '../components/PersonalityTestModal';
+import personalityTestData from '../lib/personalityTest.json';
 
 interface UserProfile {
   id: number;
@@ -22,6 +24,7 @@ interface UserProfile {
   status: string | null;
   themeColor: string | null;
   interests: string | null;
+  personalityBadge: string | null;
 }
 
 interface SocialLinks {
@@ -29,6 +32,14 @@ interface SocialLinks {
   github?: string;
   instagram?: string;
   linkedin?: string;
+}
+
+interface Badge {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  color: string;
 }
 
 export default function ProfilePage() {
@@ -42,6 +53,7 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [showPersonalityTest, setShowPersonalityTest] = useState(false);
 
   const [formData, setFormData] = useState({
     nickname: '',
@@ -327,13 +339,42 @@ export default function ProfilePage() {
     setFormData({ ...formData, interests: formData.interests.filter(i => i !== interest) });
   };
 
+  const handlePersonalityTestComplete = (badge: Badge) => {
+    setProfile((prev) => prev ? { ...prev, personalityBadge: badge.id } : null);
+    setMessage(`✓ You are ${badge.name}! Badge saved to your profile.`);
+    setTimeout(() => setMessage(''), 5000);
+  };
+
+  const getUserBadge = () => {
+    if (!profile?.personalityBadge) return null;
+    return personalityTestData.badges.find((b) => b.id === profile.personalityBadge);
+  };
+
   const getCountryFlag = (countryCode: string | null) => {
     if (!countryCode) return '';
-    const codePoints = countryCode
-      .toUpperCase()
-      .split('')
-      .map(char => 127397 + char.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
+    // Ensure we have a valid 2-letter country code
+    const code = countryCode.toUpperCase().trim();
+    if (code.length !== 2) return countryCode; // Return original if invalid
+    
+    try {
+      // Convert country code to flag emoji
+      // A = 65, Regional Indicator A = 127462, offset = 127397
+      const codePoints = code
+        .split('')
+        .map(char => {
+          const charCode = char.charCodeAt(0);
+          // Validate it's A-Z
+          if (charCode < 65 || charCode > 90) return null;
+          return 127397 + charCode;
+        })
+        .filter(cp => cp !== null) as number[];
+      
+      if (codePoints.length !== 2) return countryCode;
+      return String.fromCodePoint(...codePoints);
+    } catch (error) {
+      console.error('Error converting country code to flag:', error);
+      return countryCode; // Fallback to showing the code
+    }
   };
 
   const countries = [
@@ -614,13 +655,40 @@ export default function ProfilePage() {
                       } catch {}
                       return null;
                     })()}
+
+                    {/* Personality Badge */}
+                    {(() => {
+                      const badge = getUserBadge();
+                      if (badge) {
+                        return (
+                          <div 
+                            className="mt-4 px-4 py-3 rounded-lg inline-flex items-center gap-3"
+                            style={{ 
+                              backgroundColor: `${badge.color}20`,
+                              border: `2px solid ${badge.color}`
+                            }}
+                          >
+                            <span className="text-3xl">{badge.emoji}</span>
+                            <div>
+                              <p className="font-bold text-sm" style={{ color: badge.color }}>
+                                {badge.name}
+                              </p>
+                              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                {badge.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     
                     <p className="text-sm mt-4 font-medium" style={{ color: 'var(--text-tertiary)' }}>
                       {profile.email}
                     </p>
                   </div>
 
-                  <div className="w-full sm:w-auto">
+                  <div className="w-full sm:w-auto flex flex-col gap-3">
                     {editing ? (
                       <button
                         onClick={() => setEditing(false)}
@@ -630,13 +698,22 @@ export default function ProfilePage() {
                         Cancel
                       </button>
                     ) : (
-                      <button
-                        onClick={() => setEditing(true)}
-                        className="w-full px-8 py-3 text-white rounded-md transition font-medium"
-                        style={{ backgroundColor: profile.themeColor || 'var(--accent)' }}
-                      >
-                        Edit Profile
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setEditing(true)}
+                          className="w-full px-8 py-3 text-white rounded-md transition font-medium"
+                          style={{ backgroundColor: profile.themeColor || 'var(--accent)' }}
+                        >
+                          Edit Profile
+                        </button>
+                        <button
+                          onClick={() => setShowPersonalityTest(true)}
+                          className="w-full px-8 py-3 text-white rounded-md transition font-medium"
+                          style={{ backgroundColor: profile.personalityBadge ? 'var(--text-tertiary)' : profile.themeColor || 'var(--accent)' }}
+                        >
+                          {profile.personalityBadge ? '🔄 Retake Test' : '✨ Take Personality Test'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1089,6 +1166,14 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Personality Test Modal */}
+        <PersonalityTestModal
+          isOpen={showPersonalityTest}
+          onClose={() => setShowPersonalityTest(false)}
+          onComplete={handlePersonalityTestComplete}
+          themeColor={profile?.themeColor || '#8B5CF6'}
+        />
       </div>
     </div>
   );

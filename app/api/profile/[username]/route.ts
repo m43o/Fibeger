@@ -36,6 +36,7 @@ export async function GET(
         status: true,
         themeColor: true,
         interests: true,
+        personalityBadge: true,
         // Don't include email or lastUsernameChange for other users
       },
     });

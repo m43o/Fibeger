@@ -1,0 +1,261 @@
+{
+  "title": "Personality Discovery Test",
+  "description": "Answer these questions to discover your personality type and earn a badge!",
+  "questions": [
+    {
+      "id": 1,
+      "question": "How do you prefer to spend your free time?",
+      "answers": [
+        {
+          "text": "Exploring new places and meeting new people",
+          "weights": { "adventurer": 3, "socialite": 2, "leader": 1 }
+        },
+        {
+          "text": "Reading a good book or learning something new",
+          "weights": { "scholar": 3, "thinker": 2, "creative": 1 }
+        },
+        {
+          "text": "Creating art, music, or writing",
+          "weights": { "creative": 3, "dreamer": 2, "scholar": 1 }
+        },
+        {
+          "text": "Playing sports or staying active",
+          "weights": { "adventurer": 2, "competitor": 3, "leader": 1 }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "question": "When faced with a challenge, you typically:",
+      "answers": [
+        {
+          "text": "Take charge and create an action plan",
+          "weights": { "leader": 3, "thinker": 2, "competitor": 1 }
+        },
+        {
+          "text": "Analyze all possible solutions carefully",
+          "weights": { "thinker": 3, "scholar": 2, "strategist": 2 }
+        },
+        {
+          "text": "Go with your gut feeling",
+          "weights": { "adventurer": 2, "dreamer": 2, "creative": 2 }
+        },
+        {
+          "text": "Ask for help and collaborate with others",
+          "weights": { "socialite": 3, "supporter": 3, "diplomat": 2 }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "question": "In a group setting, you are most likely to be:",
+      "answers": [
+        {
+          "text": "The one organizing and leading",
+          "weights": { "leader": 3, "strategist": 2, "diplomat": 1 }
+        },
+        {
+          "text": "The one bringing everyone together",
+          "weights": { "socialite": 3, "supporter": 2, "diplomat": 2 }
+        },
+        {
+          "text": "The one coming up with creative ideas",
+          "weights": { "creative": 3, "dreamer": 2, "thinker": 1 }
+        },
+        {
+          "text": "The one observing and analyzing",
+          "weights": { "thinker": 3, "scholar": 2, "strategist": 1 }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "question": "What motivates you the most?",
+      "answers": [
+        {
+          "text": "Achieving goals and winning",
+          "weights": { "competitor": 3, "leader": 2, "adventurer": 1 }
+        },
+        {
+          "text": "Helping others and making a difference",
+          "weights": { "supporter": 3, "diplomat": 2, "socialite": 1 }
+        },
+        {
+          "text": "Learning and understanding the world",
+          "weights": { "scholar": 3, "thinker": 2, "strategist": 1 }
+        },
+        {
+          "text": "Creating something unique and beautiful",
+          "weights": { "creative": 3, "dreamer": 2, "adventurer": 1 }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "question": "How do you handle stress?",
+      "answers": [
+        {
+          "text": "I face it head-on and push through",
+          "weights": { "competitor": 3, "leader": 2, "adventurer": 1 }
+        },
+        {
+          "text": "I talk it out with friends or family",
+          "weights": { "socialite": 3, "supporter": 2, "diplomat": 1 }
+        },
+        {
+          "text": "I step back and think it through logically",
+          "weights": { "thinker": 3, "strategist": 2, "scholar": 1 }
+        },
+        {
+          "text": "I escape into my imagination or hobbies",
+          "weights": { "dreamer": 3, "creative": 2, "scholar": 1 }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "question": "Your ideal weekend would involve:",
+      "answers": [
+        {
+          "text": "An exciting adventure or trying something new",
+          "weights": { "adventurer": 3, "competitor": 1, "creative": 1 }
+        },
+        {
+          "text": "Hanging out with a large group of friends",
+          "weights": { "socialite": 3, "supporter": 1, "diplomat": 1 }
+        },
+        {
+          "text": "Working on a personal project or hobby",
+          "weights": { "creative": 2, "scholar": 2, "thinker": 2 }
+        },
+        {
+          "text": "Relaxing and daydreaming",
+          "weights": { "dreamer": 3, "creative": 1, "thinker": 1 }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "question": "People would describe you as:",
+      "answers": [
+        {
+          "text": "Charismatic and outgoing",
+          "weights": { "socialite": 3, "leader": 2, "diplomat": 1 }
+        },
+        {
+          "text": "Thoughtful and wise",
+          "weights": { "scholar": 3, "thinker": 2, "strategist": 1 }
+        },
+        {
+          "text": "Bold and daring",
+          "weights": { "adventurer": 3, "competitor": 2, "leader": 1 }
+        },
+        {
+          "text": "Kind and empathetic",
+          "weights": { "supporter": 3, "diplomat": 2, "socialite": 1 }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "question": "When making decisions, you rely most on:",
+      "answers": [
+        {
+          "text": "Logic and facts",
+          "weights": { "thinker": 3, "strategist": 2, "scholar": 2 }
+        },
+        {
+          "text": "Your intuition and feelings",
+          "weights": { "dreamer": 3, "creative": 2, "supporter": 1 }
+        },
+        {
+          "text": "Past experiences and patterns",
+          "weights": { "strategist": 3, "thinker": 2, "leader": 1 }
+        },
+        {
+          "text": "What's best for everyone involved",
+          "weights": { "diplomat": 3, "supporter": 2, "socialite": 1 }
+        }
+      ]
+    }
+  ],
+  "badges": [
+    {
+      "id": "leader",
+      "name": "The Leader",
+      "emoji": "👑",
+      "description": "Natural-born leader who takes charge and inspires others",
+      "color": "#FFD700"
+    },
+    {
+      "id": "scholar",
+      "name": "The Scholar",
+      "emoji": "📚",
+      "description": "Knowledge seeker with an insatiable curiosity",
+      "color": "#4169E1"
+    },
+    {
+      "id": "creative",
+      "name": "The Creative",
+      "emoji": "🎨",
+      "description": "Imaginative soul who brings beauty to the world",
+      "color": "#FF69B4"
+    },
+    {
+      "id": "adventurer",
+      "name": "The Adventurer",
+      "emoji": "🗺️",
+      "description": "Bold explorer who thrives on new experiences",
+      "color": "#FF8C00"
+    },
+    {
+      "id": "socialite",
+      "name": "The Socialite",
+      "emoji": "🎭",
+      "description": "People person who lights up every room",
+      "color": "#FF1493"
+    },
+    {
+      "id": "thinker",
+      "name": "The Thinker",
+      "emoji": "🧠",
+      "description": "Analytical mind who solves complex problems",
+      "color": "#9370DB"
+    },
+    {
+      "id": "competitor",
+      "name": "The Competitor",
+      "emoji": "🏆",
+      "description": "Driven achiever who loves to win",
+      "color": "#DC143C"
+    },
+    {
+      "id": "dreamer",
+      "name": "The Dreamer",
+      "emoji": "✨",
+      "description": "Visionary with boundless imagination",
+      "color": "#87CEEB"
+    },
+    {
+      "id": "supporter",
+      "name": "The Supporter",
+      "emoji": "🤝",
+      "description": "Caring soul who lifts others up",
+      "color": "#32CD32"
+    },
+    {
+      "id": "diplomat",
+      "name": "The Diplomat",
+      "emoji": "🕊️",
+      "description": "Peacemaker who brings harmony to all",
+      "color": "#20B2AA"
+    },
+    {
+      "id": "strategist",
+      "name": "The Strategist",
+      "emoji": "♟️",
+      "description": "Master planner who thinks several steps ahead",
+      "color": "#2F4F4F"
+    }
+  ]
+}

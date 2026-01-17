@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         status: true,
         themeColor: true,
         interests: true,
+        personalityBadge: true,
         createdAt: true,
       },
     });
@@ -158,6 +159,7 @@ export async function PUT(req: NextRequest) {
         status: true,
         themeColor: true,
         interests: true,
+        personalityBadge: true,
       },
     });
 
