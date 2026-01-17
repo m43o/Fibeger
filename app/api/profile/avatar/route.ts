@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import fs from "fs";
-import path from "path";
+import { put } from "@vercel/blob";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,25 +38,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "avatars");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
     // Generate unique filename
     const timestamp = Date.now();
     const userId = session.user.id;
     const ext = file.name.split(".").pop() || "jpg";
-    const filename = `${userId}-${timestamp}.${ext}`;
-    const filepath = path.join(uploadsDir, filename);
+    const filename = `avatars/${userId}-${timestamp}.${ext}`;
 
-    // Save file
-    const bytes = await file.arrayBuffer();
-    fs.writeFileSync(filepath, Buffer.from(bytes));
+    // Upload to Vercel Blob
+    const blob = await put(filename, file, {
+      access: "public",
+    });
 
     // Update user avatar in database
-    const avatarUrl = `/uploads/avatars/${filename}`;
+    const avatarUrl = blob.url;
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(session.user.id) },
       data: { avatar: avatarUrl },

@@ -2,11 +2,12 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
 
   if (!session) {
     return null;
@@ -16,8 +17,11 @@ export default function Sidebar() {
 
   const navItems = [
     { href: '/friends', label: 'Friends', icon: '👥' },
-    { href: '/messages', label: 'Direct Messages', icon: '💬' },
   ];
+
+  const handleStartConversation = () => {
+    router.push('/messages');
+  };
 
   return (
     <aside 
@@ -28,24 +32,6 @@ export default function Sidebar() {
       }}
       aria-label="Sidebar navigation"
     >
-      {/* Header with Search */}
-      <div className="px-4 py-3" style={{ 
-        borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-        boxShadow: '0 1px 0 rgba(4,4,5,0.2),0 1.5px 0 rgba(6,6,7,0.05),0 2px 0 rgba(4,4,5,0.05)'
-      }}>
-        <button 
-          className="w-full px-2 py-1.5 rounded text-sm text-left transition-all"
-          style={{ 
-            backgroundColor: '#1e1f22',
-            color: '#949ba4',
-            border: 'none',
-            fontSize: '14px',
-          }}
-        >
-          Find or start a conversation
-        </button>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 px-2 py-2 overflow-y-auto" aria-label="Main navigation">
         <div className="space-y-0.5">
@@ -86,7 +72,12 @@ export default function Sidebar() {
             <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#949ba4' }}>
               Direct Messages
             </span>
-            <button className="text-lg hover:text-white transition" style={{ color: '#949ba4' }}>
+            <button 
+              onClick={handleStartConversation}
+              className="text-lg hover:text-white transition" 
+              style={{ color: '#949ba4' }}
+              title="Start a conversation"
+            >
               +
             </button>
           </div>

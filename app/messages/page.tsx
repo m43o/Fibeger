@@ -408,46 +408,9 @@ export default function DMsPage() {
 
                     return (
                       <div key={msg.id} className="flex gap-4 hover:bg-black hover:bg-opacity-5 px-4 py-1 -mx-4 rounded">
-                        {!isCurrentUser && (
-                          <div className="flex-shrink-0">
-                            {showAvatar ? (
-                              msg.sender.avatar ? (
-                                <img
-                                  src={msg.sender.avatar}
-                                  alt={msg.sender.username}
-                                  className="w-10 h-10 rounded-full"
-                                />
-                              ) : (
-                                <div
-                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-                                  style={{ backgroundColor: '#5865f2' }}
-                                >
-                                  {msg.sender.username.charAt(0).toUpperCase()}
-                                </div>
-                              )
-                            ) : (
-                              <div className="w-10"></div>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          {showAvatar && (
-                            <div className="flex items-baseline gap-2 mb-1">
-                              <span className="font-semibold" style={{ color: isCurrentUser ? '#00a8fc' : '#f2f3f5' }}>
-                                {isCurrentUser ? 'You' : (msg.sender.nickname || msg.sender.username)}
-                              </span>
-                              <span className="text-xs" style={{ color: '#949ba4' }}>
-                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          )}
-                          <p className="break-words" style={{ color: '#dbdee1', lineHeight: '1.375rem' }}>
-                            {msg.content}
-                          </p>
-                        </div>
-                        {isCurrentUser && (
-                          <div className="flex-shrink-0">
-                            {showAvatar ? (
+                        <div className="flex-shrink-0">
+                          {showAvatar ? (
+                            isCurrentUser ? (
                               (session?.user as any)?.avatar ? (
                                 <img
                                   src={(session?.user as any)?.avatar}
@@ -463,10 +426,40 @@ export default function DMsPage() {
                                 </div>
                               )
                             ) : (
-                              <div className="w-10"></div>
-                            )}
-                          </div>
-                        )}
+                              msg.sender.avatar ? (
+                                <img
+                                  src={msg.sender.avatar}
+                                  alt={msg.sender.username}
+                                  className="w-10 h-10 rounded-full"
+                                />
+                              ) : (
+                                <div
+                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+                                  style={{ backgroundColor: '#5865f2' }}
+                                >
+                                  {msg.sender.username.charAt(0).toUpperCase()}
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className="w-10"></div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          {showAvatar && (
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <span className="font-semibold" style={{ color: isCurrentUser ? '#00a8fc' : '#f2f3f5' }}>
+                                {isCurrentUser ? 'You' : (msg.sender.nickname || msg.sender.username)}
+                              </span>
+                              <span className="text-xs" style={{ color: '#949ba4' }}>
+                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          )}
+                          <p className="break-words" style={{ color: '#dbdee1', lineHeight: '1.375rem' }}>
+                            {msg.content}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}
