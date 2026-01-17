@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -22,6 +22,9 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     nickname: '',
@@ -149,6 +152,33 @@ export default function ProfilePage() {
       }
     } catch (error) {
       setMessage('Error changing username');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== profile?.username) {
+      setMessage('Username does not match. Please try again.');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/profile/delete', {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        // Sign out the user and redirect to login
+        await signOut({ redirect: false });
+        router.push('/auth/login');
+      } else {
+        const error = await res.json();
+        setMessage(error.error || 'Failed to delete account');
+        setDeleting(false);
+      }
+    } catch (error) {
+      setMessage('Error deleting account');
+      setDeleting(false);
     }
   };
 
@@ -363,6 +393,70 @@ export default function ProfilePage() {
                   {canChangeUsername ? 'Change Username' : 'Cooldown Active'}
                 </button>
               </form>
+            </div>
+
+            {/* Danger Zone - Delete Account */}
+            <div className="rounded-lg p-10 border-2" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--danger)' }}>
+              <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--danger)' }}>
+                Danger Zone
+              </h2>
+              <p className="text-sm mb-8 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Once you delete your account, there is no going back. All your data, messages, and connections will be permanently deleted.
+              </p>
+              
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full sm:w-auto px-8 py-3 text-white rounded-md transition font-medium"
+                style={{ backgroundColor: 'var(--danger)' }}
+              >
+                Delete My Account
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="rounded-lg p-10 max-w-md w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+              <h2 className="text-2xl font-bold mb-5" style={{ color: 'var(--danger)' }}>
+                Delete Account
+              </h2>
+              <p className="text-base mb-6" style={{ color: 'var(--text-secondary)' }}>
+                This action cannot be undone. This will permanently delete your account, all your messages, friendships, and remove you from all group chats.
+              </p>
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                Please type <span className="font-mono px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent)' }}>{profile?.username}</span> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Enter your username"
+                className="w-full px-5 py-3 rounded-md mb-6"
+                disabled={deleting}
+              />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || deleteConfirmText !== profile?.username}
+                  className="flex-1 px-5 py-3 text-white rounded-md transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: 'var(--danger)' }}
+                >
+                  {deleting ? 'Deleting...' : 'Delete Account'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText('');
+                  }}
+                  disabled={deleting}
+                  className="flex-1 px-5 py-3 text-white rounded-md transition font-medium disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--text-tertiary)' }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
