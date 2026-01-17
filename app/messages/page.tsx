@@ -821,9 +821,12 @@ function MessagesContent() {
   }
 
   const activeChat = conversation || groupChat;
+  
+  // Explicitly separate DM and Group names to avoid confusion
   const chatName = conversation 
     ? (getOtherUser()?.nickname || getOtherUser()?.username || 'Unknown')
     : groupChat?.name || 'Unknown';
+  
   const chatAvatar = conversation
     ? getOtherUser()?.avatar
     : groupChat?.avatar;
@@ -839,10 +842,13 @@ function MessagesContent() {
             backgroundColor: '#313338',
             zIndex: 10,
           }}>
+            {/* Show @ for DMs, # for groups */}
             {conversation && <span className="text-xl" style={{ color: '#949ba4' }}>@</span>}
             {groupChat && <span className="text-xl" style={{ color: '#949ba4' }}>#</span>}
+            
             <button
               onClick={() => {
+                // Only navigate to profile in DMs, not in groups
                 if (conversation) {
                   const otherUser = getOtherUser();
                   if (otherUser) {
@@ -850,11 +856,14 @@ function MessagesContent() {
                   }
                 }
               }}
-              className="font-semibold text-sm sm:text-base hover:underline truncate"
+              className={`font-semibold text-sm sm:text-base truncate ${conversation ? 'hover:underline' : 'cursor-default'}`}
               style={{ color: '#f2f3f5' }}
+              disabled={!conversation}
             >
               {chatName}
             </button>
+            
+            {/* Group-specific UI: member count and settings button */}
             {groupChat && (
               <>
                 <span className="text-sm" style={{ color: '#949ba4' }}>
@@ -874,7 +883,7 @@ function MessagesContent() {
             )}
           </div>
 
-          {/* Group Settings Modal */}
+          {/* Group Settings Modal - Only for groups */}
           {showGroupSettings && groupChat && (
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
