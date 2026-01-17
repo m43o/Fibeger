@@ -12,7 +12,10 @@ export type EventType =
   | 'conversation_update'
   | 'group_update'
   | 'typing'
-  | 'reaction';
+  | 'reaction'
+  | 'message_deleted'
+  | 'conversation_deleted'
+  | 'group_deleted';
 
 export interface EventData {
   userId: number;

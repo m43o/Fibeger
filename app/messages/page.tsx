@@ -274,16 +274,41 @@ function MessagesContent() {
       );
     };
 
+    const handleMessageDeleted = (event: any) => {
+      const { messageId } = event.data;
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    };
+
+    const handleConversationDeleted = (event: any) => {
+      const { conversationId } = event.data;
+      if (dmId && parseInt(dmId) === conversationId) {
+        router.push('/messages');
+      }
+    };
+
+    const handleGroupDeleted = (event: any) => {
+      const { groupChatId } = event.data;
+      if (groupId && parseInt(groupId) === groupChatId) {
+        router.push('/messages');
+      }
+    };
+
     const unsubMessage = on('message', handleMessage);
     const unsubTyping = on('typing', handleTyping);
     const unsubReaction = on('reaction', handleReaction);
+    const unsubMessageDeleted = on('message_deleted', handleMessageDeleted);
+    const unsubConversationDeleted = on('conversation_deleted', handleConversationDeleted);
+    const unsubGroupDeleted = on('group_deleted', handleGroupDeleted);
     
     return () => {
       unsubMessage();
       unsubTyping();
       unsubReaction();
+      unsubMessageDeleted();
+      unsubConversationDeleted();
+      unsubGroupDeleted();
     };
-  }, [on, dmId, groupId]);
+  }, [on, dmId, groupId, router]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -292,6 +317,10 @@ function MessagesContent() {
 
   const fetchConversation = async (id: number) => {
     try {
+      // Clear group chat state and messages when switching to DM
+      setGroupChat(null);
+      setMessages([]);
+      
       const res = await fetch('/api/conversations');
       if (res.ok) {
         const data = await res.json();
@@ -311,6 +340,10 @@ function MessagesContent() {
 
   const fetchGroupChat = async (id: number) => {
     try {
+      // Clear conversation state and messages when switching to group
+      setConversation(null);
+      setMessages([]);
+      
       const res = await fetch('/api/groupchats');
       if (res.ok) {
         const data = await res.json();
@@ -705,6 +738,51 @@ function MessagesContent() {
     setReplyingTo(message);
   };
 
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!confirm('Are you sure you want to delete this message?')) return;
+
+    try {
+      const res = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        // Remove message from local state immediately
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to delete message');
+      }
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      alert('Failed to delete message');
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!dmId) return;
+
+    if (!confirm('Are you sure you want to delete this conversation? This will delete all messages and cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/conversations/${dmId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        router.push('/messages');
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to delete conversation');
+      }
+    } catch (error) {
+      console.error('Failed to delete conversation');
+      alert('Failed to delete conversation');
+    }
+  };
+
   const getMentionableUsers = (): User[] => {
     const users: User[] = [];
     
@@ -866,6 +944,20 @@ function MessagesContent() {
             >
               {chatName}
             </button>
+            
+            {/* DM-specific UI: delete conversation button */}
+            {conversation && (
+              <button
+                onClick={handleDeleteConversation}
+                className="ml-auto p-2 rounded hover:bg-gray-700 transition"
+                title="Delete Conversation"
+                style={{ color: '#b5bac1' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+            )}
             
             {/* Group-specific UI: member count and settings button */}
             {groupChat && (
@@ -1159,6 +1251,18 @@ function MessagesContent() {
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                   <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                                </svg>
+                              </button>
+                            )}
+                            {isCurrentUser && (
+                              <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="p-1.5 rounded hover:bg-red-700 transition"
+                                title="Delete Message"
+                                style={{ color: '#da373c' }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                                 </svg>
                               </button>
                             )}

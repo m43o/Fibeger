@@ -109,14 +109,30 @@ export default function Sidebar() {
       }
     };
 
+    // Handle conversation deletion
+    const handleConversationDeleted = (event: any) => {
+      const { conversationId } = event.data;
+      setConversations((prev) => prev.filter((conv) => conv.id !== conversationId));
+    };
+
+    // Handle group chat deletion
+    const handleGroupDeleted = (event: any) => {
+      const { groupChatId } = event.data;
+      setGroupChats((prev) => prev.filter((group) => group.id !== groupChatId));
+    };
+
     const unsubConversation = on('conversation_update', handleConversationUpdate);
     const unsubGroup = on('group_update', handleGroupUpdate);
     const unsubMessage = on('message', handleMessage);
+    const unsubConversationDeleted = on('conversation_deleted', handleConversationDeleted);
+    const unsubGroupDeleted = on('group_deleted', handleGroupDeleted);
 
     return () => {
       unsubConversation();
       unsubGroup();
       unsubMessage();
+      unsubConversationDeleted();
+      unsubGroupDeleted();
     };
   }, [on, session]);
 

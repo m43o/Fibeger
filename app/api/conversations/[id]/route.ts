@@ -4,7 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { eventManager } from "@/app/lib/events";
 
-// GET - Get detailed group info
+// GET - Get conversation details
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -18,13 +18,13 @@ export async function GET(
 
     const { id } = await params;
     const userId = parseInt(session.user.id);
-    const groupChatId = parseInt(id);
+    const conversationId = parseInt(id);
 
-    // Check if user is member of this group
-    const isMember = await prisma.groupChatMember.findUnique({
+    // Check if user is member of this conversation
+    const isMember = await prisma.conversationMember.findUnique({
       where: {
-        groupChatId_userId: {
-          groupChatId,
+        conversationId_userId: {
+          conversationId,
           userId,
         },
       },
@@ -37,8 +37,8 @@ export async function GET(
       );
     }
 
-    const groupChat = await prisma.groupChat.findUnique({
-      where: { id: groupChatId },
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
       include: {
         members: {
           include: {
@@ -55,16 +55,16 @@ export async function GET(
       },
     });
 
-    if (!groupChat) {
+    if (!conversation) {
       return NextResponse.json(
-        { error: "Group not found" },
+        { error: "Conversation not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(groupChat);
+    return NextResponse.json(conversation);
   } catch (error) {
-    console.error("Get group chat error:", error);
+    console.error("Get conversation error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -72,7 +72,7 @@ export async function GET(
   }
 }
 
-// DELETE - Delete group (admin only)
+// DELETE - Delete conversation (any member can delete)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -86,53 +86,46 @@ export async function DELETE(
 
     const { id } = await params;
     const userId = parseInt(session.user.id);
-    const groupChatId = parseInt(id);
+    const conversationId = parseInt(id);
 
-    // Check if user is admin of this group
-    const membership = await prisma.groupChatMember.findUnique({
+    // Check if user is member of this conversation
+    const isMember = await prisma.conversationMember.findUnique({
       where: {
-        groupChatId_userId: {
-          groupChatId,
+        conversationId_userId: {
+          conversationId,
           userId,
         },
       },
     });
 
-    if (!membership) {
+    if (!isMember) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 }
       );
     }
 
-    if (membership.role !== "admin") {
-      return NextResponse.json(
-        { error: "Only admins can delete the group" },
-        { status: 403 }
-      );
-    }
-
     // Get all members before deletion to notify them
-    const members = await prisma.groupChatMember.findMany({
-      where: { groupChatId },
+    const members = await prisma.conversationMember.findMany({
+      where: { conversationId },
       select: { userId: true },
     });
 
-    // Delete the group (cascade will delete members and messages)
-    await prisma.groupChat.delete({
-      where: { id: groupChatId },
+    // Delete the conversation (cascade will delete members and messages)
+    await prisma.conversation.delete({
+      where: { id: conversationId },
     });
 
     // Emit real-time event to all members
     members.forEach((member) => {
-      eventManager.emit(member.userId, 'group_deleted', {
-        groupChatId,
+      eventManager.emit(member.userId, 'conversation_deleted', {
+        conversationId,
       });
     });
 
-    return NextResponse.json({ message: "Group deleted successfully" });
+    return NextResponse.json({ message: "Conversation deleted successfully" });
   } catch (error) {
-    console.error("Delete group chat error:", error);
+    console.error("Delete conversation error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
