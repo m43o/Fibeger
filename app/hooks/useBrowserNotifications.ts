@@ -83,6 +83,11 @@ export function useBrowserNotifications() {
       return null;
     }
 
+    // Don't show notification if the app is already visible/focused
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      return null;
+    }
+
     try {
       const { link, ...notificationOptions } = options || {};
       

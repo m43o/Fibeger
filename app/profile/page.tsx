@@ -27,6 +27,7 @@ interface UserProfile {
   themeColor: string | null;
   interests: string | null;
   personalityBadge: string | null;
+  showPersonalityBadge: boolean;
   notificationSoundsEnabled: boolean;
   browserNotificationsEnabled: boolean;
   steamUsername: string | null;
@@ -78,6 +79,7 @@ export default function ProfilePage() {
     instagram: '',
     linkedin: '',
     interests: [] as string[],
+    showPersonalityBadge: true,
     notificationSoundsEnabled: true,
     browserNotificationsEnabled: false,
     steamUsername: '',
@@ -134,6 +136,7 @@ export default function ProfilePage() {
           instagram: socialLinks.instagram || '',
           linkedin: socialLinks.linkedin || '',
           interests: interests,
+          showPersonalityBadge: data.showPersonalityBadge ?? true,
           notificationSoundsEnabled: data.notificationSoundsEnabled ?? true,
           browserNotificationsEnabled: data.browserNotificationsEnabled ?? false,
           steamUsername: data.steamUsername || '',
@@ -171,6 +174,7 @@ export default function ProfilePage() {
           themeColor: formData.themeColor,
           socialLinks: JSON.stringify(socialLinks),
           interests: JSON.stringify(formData.interests),
+          showPersonalityBadge: formData.showPersonalityBadge,
           notificationSoundsEnabled: formData.notificationSoundsEnabled,
           browserNotificationsEnabled: formData.browserNotificationsEnabled,
           steamUsername: formData.steamUsername,
@@ -660,7 +664,7 @@ export default function ProfilePage() {
                     {/* Personality Badge */}
                     {(() => {
                       const badge = getUserBadge();
-                      if (badge) {
+                      if (badge && profile.showPersonalityBadge) {
                         return (
                           <div 
                             className="mt-4 px-4 py-3 rounded-lg inline-flex items-center gap-3"
@@ -1138,6 +1142,31 @@ export default function ProfilePage() {
                         <span
                           className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
                             formData.browserNotificationsEnabled ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-5 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                      <div className="flex-1">
+                        <label className="block text-base font-medium mb-1 cursor-pointer" style={{ color: 'var(--text-primary)' }}>
+                          🏆 Show Personality Badge
+                        </label>
+                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                          Display your personality quiz badge on your profile
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, showPersonalityBadge: !formData.showPersonalityBadge })}
+                        className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        style={{ 
+                          backgroundColor: formData.showPersonalityBadge ? formData.themeColor : 'var(--text-tertiary)'
+                        }}
+                      >
+                        <span
+                          className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                            formData.showPersonalityBadge ? 'translate-x-7' : 'translate-x-1'
                           }`}
                         />
                       </button>

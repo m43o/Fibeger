@@ -35,6 +35,7 @@ model User {
   themeColor            String?               // Custom accent color (hex code)
   interests             String?               // JSON array of interests/tags
   personalityBadge      String?               // Personality test result badge
+  showPersonalityBadge  Boolean               @default(true)        // Whether to show personality badge on profile
   notificationSoundsEnabled Boolean           @default(true)        // Whether notification sounds are enabled
   browserNotificationsEnabled Boolean         @default(false)       // Whether browser notifications are enabled
   steamUsername         String?               // Steam username

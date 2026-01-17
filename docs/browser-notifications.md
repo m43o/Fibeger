@@ -254,7 +254,9 @@ Active notifications are tracked and properly cleaned up:
 2. **Check permission**: Look for browser permission prompt
 3. **Check browser settings**: Ensure site has notification permission
 4. **Check OS settings**: Some OSes have global notification settings
-5. **Check focus**: Browser notifications only show when tab is unfocused (by design)
+5. **Check focus**: Browser notifications only show when the app is not visible/focused (by design)
+   - If the Fibeger tab is currently visible, browser notifications are suppressed
+   - This prevents notification spam while you're actively using the app
 
 ### Permission Already Denied
 

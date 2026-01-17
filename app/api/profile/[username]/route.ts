@@ -37,6 +37,7 @@ export async function GET(
         themeColor: true,
         interests: true,
         personalityBadge: true,
+        showPersonalityBadge: true,
         steamUsername: true,
         // Don't include email or lastUsernameChange for other users
       },

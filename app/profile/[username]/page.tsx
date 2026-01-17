@@ -26,6 +26,7 @@ interface UserProfile {
   themeColor: string | null;
   interests: string | null;
   personalityBadge: string | null;
+  showPersonalityBadge: boolean;
   steamUsername: string | null;
 }
 
@@ -398,7 +399,7 @@ export default function UserProfilePage() {
                     {/* Personality Badge */}
                     {(() => {
                       const badge = getUserBadge();
-                      if (badge) {
+                      if (badge && profile.showPersonalityBadge) {
                         return (
                           <div 
                             className="mt-4 px-4 py-3 rounded-lg inline-flex items-center gap-3"

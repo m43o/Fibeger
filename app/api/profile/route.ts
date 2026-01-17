@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
         themeColor: true,
         interests: true,
         personalityBadge: true,
+        showPersonalityBadge: true,
         notificationSoundsEnabled: true,
         browserNotificationsEnabled: true,
         steamUsername: true,
@@ -76,6 +77,7 @@ export async function PUT(req: NextRequest) {
       status,
       themeColor,
       interests,
+      showPersonalityBadge,
       notificationSoundsEnabled,
       browserNotificationsEnabled,
       steamUsername
@@ -145,6 +147,7 @@ export async function PUT(req: NextRequest) {
     if (status !== undefined) updates.status = status;
     if (themeColor !== undefined) updates.themeColor = themeColor;
     if (interests !== undefined) updates.interests = interests;
+    if (showPersonalityBadge !== undefined) updates.showPersonalityBadge = showPersonalityBadge;
     if (notificationSoundsEnabled !== undefined) updates.notificationSoundsEnabled = notificationSoundsEnabled;
     if (browserNotificationsEnabled !== undefined) updates.browserNotificationsEnabled = browserNotificationsEnabled;
     if (steamUsername !== undefined) updates.steamUsername = steamUsername;
@@ -176,6 +179,7 @@ export async function PUT(req: NextRequest) {
         themeColor: true,
         interests: true,
         personalityBadge: true,
+        showPersonalityBadge: true,
         notificationSoundsEnabled: true,
         browserNotificationsEnabled: true,
         steamUsername: true,
