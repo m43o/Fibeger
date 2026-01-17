@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/use-production-schema.js && prisma migrate deploy && prisma generate && next build",
+    "build": "node scripts/use-production-schema.js && prisma db push --accept-data-loss && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
