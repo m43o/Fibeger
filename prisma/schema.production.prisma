@@ -36,6 +36,8 @@ model User {
   usernameHistory       UsernameHistory[]
   notifications         Notification[]
   reactions             Reaction[]
+  feedPosts             FeedPost[]
+  feedLikes             FeedLike[]
 }
 
 model Friend {
@@ -168,4 +170,45 @@ model Notification {
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+}
+
+model FeedPost {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  caption   String?
+  mediaUrl  String   // URL to the uploaded media
+  mediaType String   // image, video, gif
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     FeedLike[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model FeedLike {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model FileBlob {
+  id          Int      @id @default(autoincrement())
+  hash        String   @unique  // SHA-256 hash of the file content
+  url         String             // Blob storage URL
+  contentType String             // MIME type
+  size        Int                // File size in bytes
+  uploadedBy  Int                // User who first uploaded this file
+  uploadedAt  DateTime @default(now())
+  
+  @@index([hash])
 }

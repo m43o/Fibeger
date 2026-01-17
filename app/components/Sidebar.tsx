@@ -273,6 +273,7 @@ export default function Sidebar() {
   };
 
   const navItems = [
+    { href: '/feed', label: 'Feed', icon: '📷' },
     { href: '/friends', label: 'Friends', icon: '👥' },
   ];
 
