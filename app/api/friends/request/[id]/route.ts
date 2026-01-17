@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { eventManager } from "@/app/lib/events";
 
 export async function GET(
   req: NextRequest,
@@ -97,8 +98,8 @@ export async function PUT(
         select: { username: true, nickname: true },
       });
 
-      // Create friend relationship (bidirectional)
-      await Promise.all([
+      // Create friend relationship (bidirectional) and notification
+      const [, , notification] = await Promise.all([
         prisma.friend.create({
           data: {
             userId: friendRequest.senderId,
@@ -122,6 +123,9 @@ export async function PUT(
           },
         }),
       ]);
+
+      // Emit real-time notification event
+      eventManager.emit(friendRequest.senderId, 'notification', notification);
     }
 
     // Update request status

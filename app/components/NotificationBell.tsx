@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
 
 interface Notification {
   id: number;
@@ -20,6 +21,7 @@ export default function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { on, off } = useRealtimeEvents();
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -123,12 +125,21 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Initial fetch and polling
+  // Initial fetch (no polling!)
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
-    return () => clearInterval(interval);
   }, []);
+
+  // Subscribe to real-time notification events
+  useEffect(() => {
+    const handleNotification = () => {
+      // Refetch notifications when a new one arrives
+      fetchNotifications();
+    };
+
+    on('notification', handleNotification);
+    return () => off('notification', handleNotification);
+  }, [on, off]);
 
   return (
     <div className="relative" ref={dropdownRef}>

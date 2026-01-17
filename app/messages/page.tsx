@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
 
 // Utility function to detect and linkify URLs
 function linkifyText(text: string) {
@@ -76,7 +77,9 @@ function MessagesContent() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { on, off } = useRealtimeEvents();
 
+  // Initial fetch (no polling!)
   useEffect(() => {
     if (!session) {
       router.push('/auth/login');
@@ -90,15 +93,31 @@ function MessagesContent() {
 
     if (dmId) {
       fetchConversation(parseInt(dmId));
-      const interval = setInterval(() => fetchMessages(parseInt(dmId), 'dm'), 1500);
-      return () => clearInterval(interval);
     } else if (groupId) {
       fetchGroupChat(parseInt(groupId));
       fetchFriends();
-      const interval = setInterval(() => fetchMessages(parseInt(groupId), 'group'), 1500);
-      return () => clearInterval(interval);
     }
   }, [session, router, dmId, groupId]);
+
+  // Subscribe to real-time message events
+  useEffect(() => {
+    if (!dmId && !groupId) return;
+
+    const handleMessage = (event: any) => {
+      const messageConvId = event.data.conversationId;
+      const messageGroupId = event.data.groupChatId;
+
+      // Only update if the message is for the current conversation/group
+      if (dmId && messageConvId === parseInt(dmId)) {
+        fetchMessages(parseInt(dmId), 'dm');
+      } else if (groupId && messageGroupId === parseInt(groupId)) {
+        fetchMessages(parseInt(groupId), 'group');
+      }
+    };
+
+    on('message', handleMessage);
+    return () => off('message', handleMessage);
+  }, [on, off, dmId, groupId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -221,15 +240,18 @@ function MessagesContent() {
         );
         // Don't restore input on success - keep it cleared
       } else {
+        // Log error details for debugging
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to send message - Status:', res.status, 'Error:', errorData);
         // Remove optimistic message on failure (but don't restore input)
         setMessages((prev) => prev.filter((msg) => msg.tempId !== tempId));
-        alert('Failed to send message. Please try again.');
+        alert(`Failed to send message: ${errorData.error || 'Please try again.'}`);
       }
     } catch (error) {
-      console.error('Failed to send message');
+      console.error('Failed to send message - Exception:', error);
       // Remove optimistic message on failure (but don't restore input)
       setMessages((prev) => prev.filter((msg) => msg.tempId !== tempId));
-      alert('Failed to send message. Please try again.');
+      alert(`Failed to send message: ${error instanceof Error ? error.message : 'Please try again.'}`);
     }
   };
 
@@ -665,7 +687,7 @@ function MessagesContent() {
                         {showAvatar && (
                           <div className="flex items-baseline gap-2 mb-1">
                             <span className="font-semibold" style={{ color: isCurrentUser ? '#00a8fc' : '#f2f3f5' }}>
-                              {isCurrentUser ? 'You' : (msg.sender.nickname || msg.sender.username)}
+                              {isCurrentUser ? ((session?.user as any)?.nickname || (session?.user as any)?.username) : (msg.sender.nickname || msg.sender.username)}
                             </span>
                             <span className="text-xs" style={{ color: '#949ba4' }}>
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

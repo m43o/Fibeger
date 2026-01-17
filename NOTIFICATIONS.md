@@ -92,7 +92,7 @@ Mark all notifications as read for the current user.
 Located at `app/components/NotificationBell.tsx`, this component:
 - Displays a bell icon with an unread count badge
 - Opens a dropdown showing all notifications
-- Auto-refreshes every 30 seconds
+- **Receives real-time updates via Server-Sent Events (SSE)** - no polling!
 - Allows marking individual notifications as read
 - Allows marking all notifications as read
 - Allows deleting individual notifications
@@ -181,11 +181,16 @@ Delete a notification.
 ### `getUnreadNotificationCount(userId)`
 Get the count of unread notifications for a user.
 
+## Real-Time Updates
+
+✅ **Now Implemented!** The notification system uses **Server-Sent Events (SSE)** for instant real-time updates.
+
+See [REALTIME.md](./REALTIME.md) for complete documentation on the real-time event system.
+
 ## Future Enhancements
 
 Potential improvements to consider:
-- Real-time notifications using WebSockets or Server-Sent Events
-- Push notifications for mobile devices
+- Push notifications for mobile devices (PWA)
 - Email notifications for important events
 - Notification preferences/settings
 - Notification grouping (e.g., "5 new messages")

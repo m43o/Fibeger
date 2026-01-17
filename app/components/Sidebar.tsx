@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSidebar } from '../context/SidebarContext';
+import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
 
 interface User {
   id: number;
@@ -52,19 +53,35 @@ export default function Sidebar() {
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [selectedFriends, setSelectedFriends] = useState<number[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const { on, off } = useRealtimeEvents();
 
+  // Initial fetch (no polling!)
   useEffect(() => {
     if (session) {
       fetchConversations();
       fetchGroupChats();
       fetchFriends();
-      const interval = setInterval(() => {
-        fetchConversations();
-        fetchGroupChats();
-      }, 3000);
-      return () => clearInterval(interval);
     }
   }, [session]);
+
+  // Subscribe to real-time conversation and group updates
+  useEffect(() => {
+    const handleConversationUpdate = () => {
+      fetchConversations();
+    };
+
+    const handleGroupUpdate = () => {
+      fetchGroupChats();
+    };
+
+    on('conversation_update', handleConversationUpdate);
+    on('group_update', handleGroupUpdate);
+
+    return () => {
+      off('conversation_update', handleConversationUpdate);
+      off('group_update', handleGroupUpdate);
+    };
+  }, [on, off]);
 
   const fetchConversations = async () => {
     try {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { eventManager } from "@/app/lib/events";
 
 // Fuzzy search algorithm
 function levenshteinDistance(a: string, b: string): number {
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Create notification for receiver
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: receiver.id,
         type: "friend_request",
@@ -195,6 +196,9 @@ export async function POST(req: NextRequest) {
         link: "/friends",
       },
     });
+
+    // Emit real-time notification event
+    eventManager.emit(receiver.id, 'notification', notification);
 
     return NextResponse.json(friendRequest);
   } catch (error) {
