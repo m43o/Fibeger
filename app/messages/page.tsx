@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
+import { useNotificationSound } from '@/app/hooks/useNotificationSound';
 
 // Utility function to detect and linkify URLs and mentions
 function linkifyText(text: string, router: any) {
@@ -154,6 +155,7 @@ function MessagesContent() {
   const groupAvatarInputRef = useRef<HTMLInputElement>(null);
   const [uploadingGroupAvatar, setUploadingGroupAvatar] = useState(false);
   const { on, off } = useRealtimeEvents();
+  const { playSound } = useNotificationSound();
 
   // Initial fetch (no polling!)
   useEffect(() => {
@@ -187,6 +189,7 @@ function MessagesContent() {
       const messageConvId = event.data.conversationId;
       const messageGroupId = event.data.groupChatId;
       const newMessage = event.data.message;
+      const currentUserId = parseInt((session?.user as any)?.id || '0');
 
       // Only update if the message is for the current conversation/group
       if (dmId && messageConvId === parseInt(dmId)) {
@@ -196,6 +199,12 @@ function MessagesContent() {
             // Check if message already exists (avoid duplicates)
             const messageExists = prev.some((msg) => msg.id === newMessage.id);
             if (messageExists) return prev;
+            
+            // Play notification sound if message is from another user
+            if (newMessage.sender.id !== currentUserId) {
+              playSound();
+            }
+            
             return [...prev, newMessage];
           });
         }
@@ -208,6 +217,12 @@ function MessagesContent() {
             // Check if message already exists (avoid duplicates)
             const messageExists = prev.some((msg) => msg.id === newMessage.id);
             if (messageExists) return prev;
+            
+            // Play notification sound if message is from another user
+            if (newMessage.sender.id !== currentUserId) {
+              playSound();
+            }
+            
             return [...prev, newMessage];
           });
         }
@@ -320,7 +335,7 @@ function MessagesContent() {
       unsubGroupDeleted();
       unsubGroupUpdated();
     };
-  }, [on, dmId, groupId, router]);
+  }, [on, dmId, groupId, router, session, playSound]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
