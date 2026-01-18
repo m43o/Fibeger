@@ -3,18 +3,18 @@
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useMessagesStore } from '@/app/stores/messagesStore';
-import { useFriendsStore } from '@/app/stores/friendsStore';
-import type { Message, Attachment, User } from '@/app/stores/messagesStore';
+import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
 
 // Utility function to detect and linkify URLs and mentions
 function linkifyText(text: string, router: any) {
+  // Combined regex for URLs, @username, and @everyone
   const combinedRegex = /(https?:\/\/[^\s]+)|(@everyone)|(@[a-zA-Z0-9_]+)/g;
   const parts = text.split(combinedRegex);
   
   return parts.map((part, index) => {
     if (!part) return null;
     
+    // Check if it's a URL
     if (part.match(/^https?:\/\//)) {
       return (
         <a
@@ -30,6 +30,7 @@ function linkifyText(text: string, router: any) {
       );
     }
     
+    // Check if it's @everyone
     if (part === '@everyone') {
       return (
         <span
@@ -46,8 +47,9 @@ function linkifyText(text: string, router: any) {
       );
     }
     
+    // Check if it's @username
     if (part.match(/^@[a-zA-Z0-9_]+$/)) {
-      const username = part.substring(1);
+      const username = part.substring(1); // Remove @
       return (
         <button
           key={index}
@@ -67,42 +69,75 @@ function linkifyText(text: string, router: any) {
   });
 }
 
+interface User {
+  id: number;
+  username: string;
+  nickname: string | null;
+  avatar: string | null;
+}
+
+interface Attachment {
+  url: string;
+  type: string;
+  name: string;
+  size: number;
+}
+
+interface Reaction {
+  id: number;
+  emoji: string;
+  userId: number;
+  user: User;
+}
+
+interface Message {
+  id: number;
+  content: string;
+  attachments?: string | Attachment[] | null; // JSON string or parsed array
+  sender: User;
+  createdAt: string;
+  isPending?: boolean; // For optimistic updates
+  tempId?: string; // Temporary ID for optimistic messages
+  reactions?: Reaction[];
+  replyTo?: {
+    id: number;
+    content: string;
+    sender: User;
+  } | null;
+}
+
+interface Conversation {
+  id: number;
+  members: { user: User }[];
+  messages: Message[];
+}
+
+interface GroupChat {
+  id: number;
+  name: string;
+  description: string | null;
+  avatar: string | null;
+  members: { user: User; role: string }[];
+  messages: Message[];
+}
+
 function MessagesContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const dmId = searchParams.get('dm');
   const groupId = searchParams.get('group');
-  const chatId = dmId ? parseInt(dmId) : groupId ? parseInt(groupId) : null;
 
-  // Get state and actions from stores
-  const {
-    conversations,
-    groupChats,
-    messages: messagesMap,
-    typingUsers: typingUsersMap,
-    fetchMessages,
-    addMessage,
-    updateMessage,
-    removeMessage,
-    addReaction,
-    removeReaction,
-  } = useMessagesStore();
-
-  const { friends, fetchFriends } = useFriendsStore();
-
-  // Get current conversation/group and messages
-  const conversation = dmId ? conversations.get(parseInt(dmId)) : null;
-  const groupChat = groupId ? groupChats.get(parseInt(groupId)) : null;
-  const messages = chatId ? messagesMap.get(chatId) || [] : [];
-  const typingUsers = chatId ? typingUsersMap.get(chatId) || new Set() : new Set();
-
-  // Local UI state
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [groupChat, setGroupChat] = useState<GroupChat | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [friends, setFriends] = useState<User[]>([]);
   const [showAddMember, setShowAddMember] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -113,15 +148,15 @@ function MessagesContent() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [viewingMedia, setViewingMedia] = useState<{ url: string; type: string; name: string } | null>(null);
-  const [uploadingGroupAvatar, setUploadingGroupAvatar] = useState(false);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const groupAvatarInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingGroupAvatar, setUploadingGroupAvatar] = useState(false);
+  const { on, off } = useRealtimeEvents();
 
-  // Initial fetch
+  // Initial fetch (no polling!)
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push('/auth/login');
@@ -137,28 +172,166 @@ function MessagesContent() {
       return;
     }
 
-    const loadData = async () => {
-      if (chatId) {
-        await fetchMessages(chatId, dmId ? 'dm' : 'group');
-        markAsRead(chatId, dmId ? 'dm' : 'group');
+    if (dmId) {
+      fetchConversation(parseInt(dmId));
+    } else if (groupId) {
+      fetchGroupChat(parseInt(groupId));
+      fetchFriends();
+    }
+  }, [status, session, router, dmId, groupId]);
+
+  // Subscribe to real-time message events
+  useEffect(() => {
+    if (!dmId && !groupId) return;
+
+    const handleMessage = (event: any) => {
+      const messageConvId = event.data.conversationId;
+      const messageGroupId = event.data.groupChatId;
+      const newMessage = event.data.message;
+      const currentUserId = parseInt((session?.user as any)?.id || '0');
+
+      // Only update if the message is for the current conversation/group
+      if (dmId && messageConvId === parseInt(dmId)) {
+        // Directly add the message to state for immediate display
+        if (newMessage) {
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            const messageExists = prev.some((msg) => msg.id === newMessage.id);
+            if (messageExists) return prev;
+            
+            return [...prev, newMessage];
+          });
+        }
+        // Mark as read since user is viewing this conversation
+        markAsRead(parseInt(dmId), 'dm');
+      } else if (groupId && messageGroupId === parseInt(groupId)) {
+        // Directly add the message to state for immediate display
+        if (newMessage) {
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            const messageExists = prev.some((msg) => msg.id === newMessage.id);
+            if (messageExists) return prev;
+            
+            return [...prev, newMessage];
+          });
+        }
+        // Mark as read since user is viewing this group
+        markAsRead(parseInt(groupId), 'group');
       }
-      
-      if (groupId) {
-        fetchFriends();
-      }
-      
-      setLoading(false);
     };
 
-    loadData();
-  }, [status, session, router, dmId, groupId, chatId, fetchMessages, fetchFriends]);
+    const handleTyping = (event: any) => {
+      const typingConvId = event.data.conversationId;
+      const typingGroupId = event.data.groupChatId;
+      const { userName, isTyping } = event.data;
+
+      // Only update if the typing is for the current conversation/group
+      if ((dmId && typingConvId === parseInt(dmId)) || (groupId && typingGroupId === parseInt(groupId))) {
+        setTypingUsers((prev) => {
+          const newSet = new Set(prev);
+          if (isTyping) {
+            newSet.add(userName);
+          } else {
+            newSet.delete(userName);
+          }
+          return newSet;
+        });
+
+        // Auto-remove typing indicator after 5 seconds
+        if (isTyping) {
+          setTimeout(() => {
+            setTypingUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(userName);
+              return newSet;
+            });
+          }, 5000);
+        }
+      }
+    };
+
+    const handleReaction = (event: any) => {
+      const { messageId, reaction, action, userId, emoji } = event.data;
+      
+      setMessages((prev) => 
+        prev.map((msg) => {
+          if (msg.id === messageId) {
+            const currentReactions = msg.reactions || [];
+            if (action === 'add') {
+              // Add new reaction if it doesn't exist
+              const exists = currentReactions.some(
+                (r) => r.userId === reaction.userId && r.emoji === reaction.emoji
+              );
+              if (!exists) {
+                return { ...msg, reactions: [...currentReactions, reaction] };
+              }
+            } else if (action === 'remove') {
+              // Remove reaction
+              return {
+                ...msg,
+                reactions: currentReactions.filter(
+                  (r) => !(r.userId === userId && r.emoji === emoji)
+                ),
+              };
+            }
+          }
+          return msg;
+        })
+      );
+    };
+
+    const handleMessageDeleted = (event: any) => {
+      const { messageId } = event.data;
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    };
+
+    const handleConversationDeleted = (event: any) => {
+      const { conversationId } = event.data;
+      if (dmId && parseInt(dmId) === conversationId) {
+        router.push('/messages');
+      }
+    };
+
+    const handleGroupDeleted = (event: any) => {
+      const { groupChatId } = event.data;
+      if (groupId && parseInt(groupId) === groupChatId) {
+        router.push('/messages');
+      }
+    };
+
+    const handleGroupUpdated = (event: any) => {
+      const { groupChatId, group } = event.data;
+      if (groupId && parseInt(groupId) === groupChatId && group) {
+        // Update the group chat state with new data (e.g., new avatar)
+        setGroupChat(group);
+      }
+    };
+
+    const unsubMessage = on('message', handleMessage);
+    const unsubTyping = on('typing', handleTyping);
+    const unsubReaction = on('reaction', handleReaction);
+    const unsubMessageDeleted = on('message_deleted', handleMessageDeleted);
+    const unsubConversationDeleted = on('conversation_deleted', handleConversationDeleted);
+    const unsubGroupDeleted = on('group_deleted', handleGroupDeleted);
+    const unsubGroupUpdated = on('group_updated', handleGroupUpdated);
+    
+    return () => {
+      unsubMessage();
+      unsubTyping();
+      unsubReaction();
+      unsubMessageDeleted();
+      unsubConversationDeleted();
+      unsubGroupDeleted();
+      unsubGroupUpdated();
+    };
+  }, [on, dmId, groupId, router, session]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle ESC key and body scroll lock for media viewer
+  // Handle ESC key to close media viewer and lock body scroll
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && viewingMedia) {
@@ -167,15 +340,86 @@ function MessagesContent() {
     };
 
     if (viewingMedia) {
+      // Lock body scroll when modal is open
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleEscape);
     }
 
     return () => {
+      // Restore body scroll when modal closes
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleEscape);
     };
   }, [viewingMedia]);
+
+  const fetchConversation = async (id: number) => {
+    try {
+      // Clear group chat state and messages when switching to DM
+      setGroupChat(null);
+      setMessages([]);
+      
+      const res = await fetch('/api/conversations');
+      if (res.ok) {
+        const data = await res.json();
+        const conv = data.find((c: Conversation) => c.id === id);
+        setConversation(conv || null);
+        if (conv) {
+          fetchMessages(id, 'dm');
+          markAsRead(id, 'dm');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load conversation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGroupChat = async (id: number) => {
+    try {
+      // Clear conversation state and messages when switching to group
+      setConversation(null);
+      setMessages([]);
+      
+      const res = await fetch('/api/groupchats');
+      if (res.ok) {
+        const data = await res.json();
+        const group = data.find((g: GroupChat) => g.id === id);
+        setGroupChat(group || null);
+        if (group) {
+          fetchMessages(id, 'group');
+          markAsRead(id, 'group');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load group chat');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMessages = async (id: number, type: 'dm' | 'group') => {
+    try {
+      const endpoint = type === 'dm' 
+        ? `/api/conversations/${id}/messages`
+        : `/api/groupchats/${id}/messages`;
+      
+      const res = await fetch(endpoint);
+      if (res.ok) {
+        const data = await res.json();
+        // Preserve pending optimistic messages when updating from server
+        setMessages((prev) => {
+          const pendingMessages = prev.filter((msg) => msg.isPending);
+          // Merge server messages with pending ones, avoiding duplicates
+          const serverMessageIds = new Set(data.map((msg: Message) => msg.id));
+          const filteredPending = pendingMessages.filter((msg) => !serverMessageIds.has(msg.id));
+          return [...data, ...filteredPending];
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load messages');
+    }
+  };
 
   const markAsRead = async (id: number, type: 'dm' | 'group') => {
     try {
@@ -193,12 +437,15 @@ function MessagesContent() {
   };
 
   const handleTyping = async () => {
-    if (!chatId) return;
+    const id = dmId ? parseInt(dmId) : groupId ? parseInt(groupId) : null;
+    if (!id) return;
 
+    // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
+    // Send typing indicator
     try {
       await fetch('/api/typing', {
         method: 'POST',
@@ -213,6 +460,7 @@ function MessagesContent() {
       console.error('Failed to send typing indicator:', error);
     }
 
+    // Stop typing after 3 seconds
     typingTimeoutRef.current = setTimeout(async () => {
       try {
         await fetch('/api/typing', {
@@ -248,6 +496,7 @@ function MessagesContent() {
 
       if (res.ok) {
         const data = await res.json();
+        // Handle both single file and multiple files response formats
         const uploadedFiles = data.files || [data];
         setAttachments((prev) => [...prev, ...uploadedFiles]);
       } else {
@@ -272,7 +521,9 @@ function MessagesContent() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() && attachments.length === 0) return;
-    if (!chatId) return;
+
+    const id = dmId ? parseInt(dmId) : groupId ? parseInt(groupId) : null;
+    if (!id) return;
 
     const type = dmId ? 'dm' : 'group';
     const messageContent = newMessage;
@@ -280,6 +531,7 @@ function MessagesContent() {
     const replyToId = replyingTo?.id;
     const tempId = `temp-${Date.now()}-${Math.random()}`;
 
+    // Get current user info for optimistic message
     const userId = parseInt((session?.user as any)?.id || '0');
     const currentUser: User = {
       id: userId,
@@ -290,7 +542,7 @@ function MessagesContent() {
 
     // Create optimistic message
     const optimisticMessage: Message = {
-      id: -1,
+      id: -1, // Temporary ID
       tempId,
       content: messageContent,
       attachments: messageAttachments.length > 0 ? JSON.stringify(messageAttachments) : null,
@@ -305,10 +557,10 @@ function MessagesContent() {
       } : null,
     };
 
-    // Optimistically add to store
-    addMessage(chatId, optimisticMessage);
+    // Add message optimistically to the UI
+    setMessages((prev) => [...prev, optimisticMessage]);
 
-    // Clear input immediately
+    // Clear the input, attachments, and reply immediately for better UX
     setNewMessage('');
     setAttachments([]);
     setReplyingTo(null);
@@ -330,8 +582,8 @@ function MessagesContent() {
 
     try {
       const endpoint = type === 'dm'
-        ? `/api/conversations/${chatId}/messages`
-        : `/api/groupchats/${chatId}/messages`;
+        ? `/api/conversations/${id}/messages`
+        : `/api/groupchats/${id}/messages`;
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -346,18 +598,24 @@ function MessagesContent() {
       if (res.ok) {
         const serverMessage = await res.json();
         // Replace optimistic message with server response
-        updateMessage(chatId, -1, { ...serverMessage, isPending: false, tempId });
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.tempId === tempId ? { ...serverMessage, isPending: false } : msg
+          )
+        );
+        // Don't restore input on success - keep it cleared
       } else {
+        // Log error details for debugging
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to send message - Status:', res.status, 'Error:', errorData);
-        // Remove optimistic message on failure
-        removeMessage(chatId, -1);
+        // Remove optimistic message on failure (but don't restore input)
+        setMessages((prev) => prev.filter((msg) => msg.tempId !== tempId));
         alert(`Failed to send message: ${errorData.error || 'Please try again.'}`);
       }
     } catch (error) {
       console.error('Failed to send message - Exception:', error);
-      // Remove optimistic message on failure
-      removeMessage(chatId, -1);
+      // Remove optimistic message on failure (but don't restore input)
+      setMessages((prev) => prev.filter((msg) => msg.tempId !== tempId));
       alert(`Failed to send message: ${error instanceof Error ? error.message : 'Please try again.'}`);
     }
   };
@@ -366,6 +624,18 @@ function MessagesContent() {
     if (!conversation) return null;
     const userId = parseInt((session?.user as any)?.id || '0');
     return conversation.members.find((m) => m.user.id !== userId)?.user || null;
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data);
+      }
+    } catch (error) {
+      console.error('Failed to load friends');
+    }
   };
 
   const isGroupAdmin = (): boolean => {
@@ -393,7 +663,7 @@ function MessagesContent() {
       });
 
       if (res.ok) {
-        // Group will be updated via SSE
+        await fetchGroupChat(parseInt(groupId));
         setShowAddMember(false);
       } else {
         const error = await res.json();
@@ -426,8 +696,9 @@ function MessagesContent() {
       if (res.ok) {
         if (isRemovingSelf) {
           router.push('/messages');
+        } else {
+          await fetchGroupChat(parseInt(groupId));
         }
-        // Group will be updated via SSE
       } else {
         const error = await res.json();
         alert(error.error || 'Failed to remove member');
@@ -477,8 +748,9 @@ function MessagesContent() {
       });
 
       if (res.ok) {
+        const updatedGroup = await res.json();
+        setGroupChat(updatedGroup);
         alert('Group avatar updated successfully!');
-        // Group will be updated via SSE
       } else {
         const error = await res.json();
         alert(error.error || 'Failed to upload avatar');
@@ -495,8 +767,6 @@ function MessagesContent() {
   };
 
   const handleAddReaction = async (messageId: number, emoji: string) => {
-    if (!chatId) return;
-    
     try {
       const res = await fetch(`/api/messages/${messageId}/reactions`, {
         method: 'POST',
@@ -507,7 +777,6 @@ function MessagesContent() {
       if (!res.ok) {
         console.error('Failed to add reaction');
       }
-      // Reaction will be added via SSE
     } catch (error) {
       console.error('Failed to add reaction:', error);
     }
@@ -523,7 +792,6 @@ function MessagesContent() {
       if (!res.ok) {
         console.error('Failed to remove reaction');
       }
-      // Reaction will be removed via SSE
     } catch (error) {
       console.error('Failed to remove reaction:', error);
     }
@@ -531,6 +799,7 @@ function MessagesContent() {
 
   const handleCopyMessage = (content: string) => {
     navigator.clipboard.writeText(content).then(() => {
+      // Could show a toast notification here
       console.log('Message copied to clipboard');
     }).catch((error) => {
       console.error('Failed to copy message:', error);
@@ -550,7 +819,8 @@ function MessagesContent() {
       });
 
       if (res.ok) {
-        // Message will be removed via SSE
+        // Remove message from local state immediately
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
       } else {
         const error = await res.json();
         alert(error.error || 'Failed to delete message');
@@ -589,9 +859,11 @@ function MessagesContent() {
     const users: User[] = [];
     
     if (conversation) {
+      // In DM, only the other user can be mentioned
       const otherUser = getOtherUser();
       if (otherUser) users.push(otherUser);
     } else if (groupChat) {
+      // In group chat, all members except self can be mentioned
       const currentUserId = parseInt((session?.user as any)?.id || '0');
       groupChat.members.forEach((member) => {
         if (member.user.id !== currentUserId) {
@@ -611,17 +883,20 @@ function MessagesContent() {
     const lastAtIndex = value.lastIndexOf('@');
     if (lastAtIndex !== -1) {
       const textAfterAt = value.substring(lastAtIndex + 1);
+      // Only show suggestions if @ is at start or after a space, and no space after @
       const charBeforeAt = lastAtIndex === 0 ? ' ' : value[lastAtIndex - 1];
       if ((charBeforeAt === ' ' || lastAtIndex === 0) && !textAfterAt.includes(' ')) {
         setMentionQuery(textAfterAt.toLowerCase());
         const mentionableUsers = getMentionableUsers();
         
+        // Filter users based on query, and always include @everyone option
         const filtered = mentionableUsers.filter(
           (user) =>
             user.username.toLowerCase().includes(textAfterAt.toLowerCase()) ||
             (user.nickname && user.nickname.toLowerCase().includes(textAfterAt.toLowerCase()))
         );
         
+        // Add @everyone as an option (only for group chats)
         const suggestions = groupChat && 'everyone'.includes(textAfterAt.toLowerCase())
           ? [{ id: -1, username: 'everyone', nickname: null, avatar: null } as User, ...filtered]
           : filtered;
@@ -703,13 +978,15 @@ function MessagesContent() {
   }
 
   const activeChat = conversation || groupChat;
+  
+  // Explicitly separate DM and Group names to avoid confusion
   const chatName = conversation 
     ? (getOtherUser()?.nickname || getOtherUser()?.username || 'Unknown')
     : groupChat?.name || 'Unknown';
+  
   const chatAvatar = conversation
     ? getOtherUser()?.avatar
     : groupChat?.avatar;
-  const currentUserId = parseInt((session?.user as any)?.id || '0');
 
   return (
     <div className="flex flex-col pt-14 lg:pt-0 fixed top-0 bottom-0 left-0 right-0 lg:left-60" style={{ backgroundColor: '#313338' }}>
@@ -722,11 +999,13 @@ function MessagesContent() {
             backgroundColor: '#313338',
             zIndex: 10,
           }}>
+            {/* Show @ for DMs, # for groups */}
             {conversation && <span className="text-xl" style={{ color: '#949ba4' }}>@</span>}
             {groupChat && <span className="text-xl" style={{ color: '#949ba4' }}>#</span>}
             
             <button
               onClick={() => {
+                // Only navigate to profile in DMs, not in groups
                 if (conversation) {
                   const otherUser = getOtherUser();
                   if (otherUser) {
@@ -741,6 +1020,7 @@ function MessagesContent() {
               {chatName}
             </button>
             
+            {/* DM-specific UI: delete conversation button */}
             {conversation && (
               <button
                 onClick={handleDeleteConversation}
@@ -754,6 +1034,7 @@ function MessagesContent() {
               </button>
             )}
             
+            {/* Group-specific UI: member count and settings button */}
             {groupChat && (
               <>
                 <span className="text-sm" style={{ color: '#949ba4' }}>
@@ -812,7 +1093,7 @@ function MessagesContent() {
             </div>
           )}
 
-          {/* Group Settings Modal */}
+          {/* Group Settings Modal - Only for groups */}
           {showGroupSettings && groupChat && (
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -953,7 +1234,7 @@ function MessagesContent() {
 
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {groupChat.members.map((member) => {
-                      const isCurrentUser = member.user.id === currentUserId;
+                      const isCurrentUser = member.user.id === parseInt((session?.user as any)?.id || '0');
                       return (
                         <div key={member.user.id} className="flex items-center gap-2 p-2 rounded" style={{ backgroundColor: '#1e1f22' }}>
                           {member.user.avatar ? (
@@ -996,7 +1277,7 @@ function MessagesContent() {
 
                 <div className="space-y-2 pt-4 border-t" style={{ borderColor: '#1e1f22' }}>
                   <button
-                    onClick={() => handleRemoveMember(currentUserId)}
+                    onClick={() => handleRemoveMember(parseInt((session?.user as any)?.id || '0'))}
                     className="w-full px-4 py-2 rounded font-semibold hover:bg-red-700 transition"
                     style={{ backgroundColor: '#da373c', color: '#fff' }}
                   >
@@ -1047,9 +1328,10 @@ function MessagesContent() {
             ) : (
               <div>
                 {messages.map((msg, index) => {
-                  const isCurrentUser = msg.sender.id === currentUserId;
+                  const isCurrentUser = msg.sender.id === parseInt((session?.user as any)?.id || '0');
                   const showAvatar = index === 0 || messages[index - 1].sender.id !== msg.sender.id;
                   const isConsecutive = !showAvatar;
+                  const currentUserId = parseInt((session?.user as any)?.id || '0');
 
                   return (
                     <div 
@@ -1220,6 +1502,7 @@ function MessagesContent() {
                           )}
                           {msg.attachments && (() => {
                             try {
+                              // Handle both string (JSON) and already-parsed array formats
                               const attachmentList: Attachment[] = typeof msg.attachments === 'string' 
                                 ? JSON.parse(msg.attachments)
                                 : msg.attachments;
@@ -1272,13 +1555,14 @@ function MessagesContent() {
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {(() => {
+                                // Group reactions by emoji
                                 const grouped = msg.reactions.reduce((acc, reaction) => {
                                   if (!acc[reaction.emoji]) {
                                     acc[reaction.emoji] = [];
                                   }
                                   acc[reaction.emoji].push(reaction);
                                   return acc;
-                                }, {} as Record<string, typeof msg.reactions>);
+                                }, {} as Record<string, Reaction[]>);
 
                                 return Object.entries(grouped).map(([emoji, reactions]) => {
                                   const hasReacted = reactions.some(r => r.userId === currentUserId);
@@ -1479,6 +1763,7 @@ function MessagesContent() {
                           onMouseEnter={() => setSelectedMentionIndex(index)}
                         >
                           {user.id === -1 ? (
+                            // @everyone icon
                             <div
                               className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold"
                               style={{ backgroundColor: '#5865f2' }}

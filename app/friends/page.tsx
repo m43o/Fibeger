@@ -3,29 +3,33 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { useFriendsStore } from '@/app/stores/friendsStore';
+import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
+
+interface UserPreview {
+  id: number;
+  username: string;
+  nickname: string | null;
+  avatar: string | null;
+}
+
+interface FriendRequest {
+  id: number;
+  sender: UserPreview;
+  status: string;
+  createdAt: string;
+}
 
 export default function FriendsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { on, off } = useRealtimeEvents();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<UserPreview[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [friends, setFriends] = useState<UserPreview[]>([]);
   const [message, setMessage] = useState('');
-
-  // Get state and actions from store
-  const {
-    friends,
-    friendRequests,
-    searchResults,
-    isLoading,
-    isSearching,
-    fetchFriends,
-    fetchFriendRequests,
-    searchUsers,
-    sendFriendRequest,
-    respondToRequest,
-    removeFriendById,
-    clearSearchResults,
-  } = useFriendsStore();
+  const [searching, setSearching] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -37,25 +41,92 @@ export default function FriendsPage() {
       return;
     }
 
-    // Fetch data on mount (with caching)
     fetchFriendRequests();
     fetchFriends();
-  }, [status, session, router, fetchFriendRequests, fetchFriends]);
+  }, [status, session, router]);
+
+  // Listen for real-time friend removal events
+  useEffect(() => {
+    const handleFriendRemoved = (event: any) => {
+      // Refresh the friends list when someone removes you as a friend
+      fetchFriends();
+      const removedByName = event.data.removedByNickname || event.data.removedByUsername;
+      setMessage(`${removedByName} removed you from their friends`);
+      setTimeout(() => setMessage(''), 5000);
+    };
+
+    on('friend_removed', handleFriendRemoved);
+    return () => off('friend_removed', handleFriendRemoved);
+  }, [on, off]);
+
+  const fetchFriendRequests = async () => {
+    try {
+      const res = await fetch('/api/friends/request/dummy');
+      if (res.ok) {
+        const data = await res.json();
+        setFriendRequests(data);
+      }
+    } catch (error) {
+      console.error('Failed to load friend requests');
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data);
+      }
+    } catch (error) {
+      console.error('Failed to load friends');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    await searchUsers(query);
+
+    if (query.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/friends/request?query=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data);
+      }
+    } catch (error) {
+      setMessage('Failed to search users');
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleSendFriendRequest = async (username: string) => {
-    const result = await sendFriendRequest(username);
-    if (result.success) {
-      setMessage('✓ Friend request sent!');
-      setSearchQuery('');
-      setTimeout(() => setMessage(''), 3000);
-    } else {
-      setMessage(result.error || 'Failed to send request');
+    try {
+      const res = await fetch('/api/friends/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverUsername: username }),
+      });
+
+      if (res.ok) {
+        setMessage('✓ Friend request sent!');
+        setSearchQuery('');
+        setSearchResults([]);
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        const error = await res.json();
+        setMessage(error.error || 'Failed to send request');
+      }
+    } catch (error) {
+      setMessage('Error sending friend request');
     }
   };
 
@@ -63,12 +134,25 @@ export default function FriendsPage() {
     requestId: number,
     action: 'accept' | 'reject'
   ) => {
-    const result = await respondToRequest(requestId, action);
-    if (result.success) {
-      setMessage(action === 'accept' ? '✓ Friend added!' : '✗ Request rejected');
-      setTimeout(() => setMessage(''), 3000);
-    } else {
-      setMessage(result.error || 'Failed to respond to request');
+    try {
+      const res = await fetch(`/api/friends/request/${requestId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+
+      if (res.ok) {
+        setMessage(action === 'accept' ? '✓ Friend added!' : '✗ Request rejected');
+        fetchFriendRequests();
+        if (action === 'accept') {
+          fetchFriends();
+        }
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage('Failed to respond to request');
+      }
+    } catch (error) {
+      setMessage('Error responding to request');
     }
   };
 
@@ -101,17 +185,27 @@ export default function FriendsPage() {
       return;
     }
 
-    const result = await removeFriendById(friendId);
-    if (result.success) {
-      setMessage('✓ Friend removed successfully');
-      setTimeout(() => setMessage(''), 3000);
-    } else {
-      setMessage(result.error || 'Failed to remove friend');
+    try {
+      const res = await fetch(`/api/friends?friendId=${friendId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setMessage('✓ Friend removed successfully');
+        fetchFriends(); // Refresh the friends list
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        const error = await res.json();
+        setMessage(error.error || 'Failed to remove friend');
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (error) {
+      setMessage('Error removing friend');
       setTimeout(() => setMessage(''), 3000);
     }
   };
 
-  if (status === "loading" || isLoading) {
+  if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -209,7 +303,7 @@ export default function FriendsPage() {
               onChange={handleSearch}
               className="w-full px-5 py-4 rounded-md text-base font-medium"
             />
-            {isSearching && (
+            {searching && (
               <div className="absolute right-4 top-3 font-medium" style={{ color: 'var(--text-tertiary)' }}>
                 Searching...
               </div>
