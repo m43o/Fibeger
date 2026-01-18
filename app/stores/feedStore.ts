@@ -93,42 +93,37 @@ export const useFeedStore = create<FeedState>()(
         })
       })),
 
-  setFeedType: (feedType) => {
-    // Clear posts when switching feed types to force fresh data display
-    set({ feedType, posts: [] });
-    // Immediately fetch posts for the new feed type
-    get().fetchPosts(feedType);
-  },
+      setFeedType: (feedType) => set({ feedType }),
 
-  setLoading: (isLoading) => set({ isLoading }),
+      setLoading: (isLoading) => set({ isLoading }),
 
-  // API Actions
-  fetchPosts: async (feedType) => {
-    const currentFeedType = feedType || get().feedType;
-    const { lastFetch } = get();
-    
-    // Cache for 30 seconds
-    const lastFetchTime = lastFetch.get(currentFeedType);
-    if (lastFetchTime && Date.now() - lastFetchTime < 30000) {
-      return;
-    }
+      // API Actions
+      fetchPosts: async (feedType) => {
+        const currentFeedType = feedType || get().feedType;
+        const { lastFetch } = get();
+        
+        // Cache for 30 seconds
+        const lastFetchTime = lastFetch.get(currentFeedType);
+        if (lastFetchTime && Date.now() - lastFetchTime < 30000) {
+          return;
+        }
 
-    set({ isLoading: true });
-    try {
-      const res = await fetch(`/api/feed?type=${currentFeedType}`);
-      if (res.ok) {
-        const data = await res.json();
-        set({ posts: data });
-        const newLastFetch = new Map(lastFetch);
-        newLastFetch.set(currentFeedType, Date.now());
-        set({ lastFetch: newLastFetch });
-      }
-    } catch (error) {
-      console.error('Failed to fetch posts:', error);
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+        set({ isLoading: true });
+        try {
+          const res = await fetch(`/api/feed?type=${currentFeedType}`);
+          if (res.ok) {
+            const data = await res.json();
+            set({ posts: data });
+            const newLastFetch = new Map(lastFetch);
+            newLastFetch.set(currentFeedType, Date.now());
+            set({ lastFetch: newLastFetch });
+          }
+        } catch (error) {
+          console.error('Failed to fetch posts:', error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
       createPost: async (caption, mediaUrl, mediaType, isPublic) => {
         try {

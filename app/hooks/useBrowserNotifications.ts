@@ -256,8 +256,7 @@ export function useBrowserNotifications() {
     return () => {
       unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSupported, isEnabled, permission, on]); // Removed showNotification to avoid re-subscriptions
+  }, [isSupported, isEnabled, permission, on, showNotification]);
 
   // Cleanup on unmount
   useEffect(() => {

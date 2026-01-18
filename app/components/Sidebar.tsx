@@ -6,31 +6,48 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSidebar } from '../context/SidebarContext';
 import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
-import { useMessagesStore } from '@/app/stores/messagesStore';
-import { useFriendsStore } from '@/app/stores/friendsStore';
-import type { User } from '@/app/stores/messagesStore';
+
+interface User {
+  id: number;
+  username: string;
+  nickname: string | null;
+  avatar: string | null;
+}
+
+interface Message {
+  id: number;
+  content: string;
+  sender: User;
+  createdAt: string;
+}
+
+interface Conversation {
+  id: number;
+  members: { user: User }[];
+  messages: Message[];
+  unreadCount?: number;
+}
+
+interface GroupChat {
+  id: number;
+  name: string;
+  description: string | null;
+  avatar: string | null;
+  members: { user: User; role: string }[];
+  messages: Message[];
+  unreadCount?: number;
+}
 
 export default function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const { isSidebarOpen, closeSidebar } = useSidebar();
-  
-  // Use Zustand stores
-  const { 
-    conversations: conversationsMap, 
-    groupChats: groupChatsMap,
-    fetchConversations,
-    fetchGroupChats,
-  } = useMessagesStore();
-  const { friends, fetchFriends } = useFriendsStore();
-  
-  // Convert Maps to arrays for easier rendering
-  const conversations = Array.from(conversationsMap.values());
-  const groupChats = Array.from(groupChatsMap.values());
-  
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
   const [showDMs, setShowDMs] = useState(true);
   const [showGroups, setShowGroups] = useState(true);
+  const [friends, setFriends] = useState<User[]>([]);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
@@ -38,7 +55,7 @@ export default function Sidebar() {
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [selectedFriends, setSelectedFriends] = useState<number[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
-  const { on } = useRealtimeEvents();
+  const { on, off } = useRealtimeEvents();
 
   // Initial fetch (no polling!)
   useEffect(() => {
@@ -50,28 +67,122 @@ export default function Sidebar() {
   }, [session]);
 
   // Subscribe to real-time conversation and group updates
-  // Note: Store sync is already handled by useStoreSync in providers
-  // This just handles UI-specific updates like refetching on certain events
   useEffect(() => {
     const handleConversationUpdate = () => {
-      // Get the latest store instance and call fetch
-      useMessagesStore.getState().fetchConversations();
+      fetchConversations();
     };
 
     const handleGroupUpdate = () => {
-      // Get the latest store instance and call fetch
-      useMessagesStore.getState().fetchGroupChats();
+      fetchGroupChats();
+    };
+
+    // Handle incoming messages to update unread counts instantly
+    const handleMessage = (event: any) => {
+      const { conversationId, groupChatId, message } = event.data;
+      const currentUserId = parseInt((session?.user as any)?.id || '0');
+
+      // Don't update unread count for own messages
+      if (message?.sender?.id === currentUserId) {
+        return;
+      }
+
+      // Update conversation unread count locally (optimistic update)
+      if (conversationId) {
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === conversationId
+              ? { ...conv, unreadCount: (conv.unreadCount || 0) + 1 }
+              : conv
+          )
+        );
+      }
+
+      // Update group chat unread count locally (optimistic update)
+      if (groupChatId) {
+        setGroupChats((prev) =>
+          prev.map((group) =>
+            group.id === groupChatId
+              ? { ...group, unreadCount: (group.unreadCount || 0) + 1 }
+              : group
+          )
+        );
+      }
+    };
+
+    // Handle conversation deletion
+    const handleConversationDeleted = (event: any) => {
+      const { conversationId } = event.data;
+      setConversations((prev) => prev.filter((conv) => conv.id !== conversationId));
+    };
+
+    // Handle group chat deletion
+    const handleGroupDeleted = (event: any) => {
+      const { groupChatId } = event.data;
+      setGroupChats((prev) => prev.filter((group) => group.id !== groupChatId));
+    };
+
+    // Handle group chat updates (e.g., avatar changes)
+    const handleGroupUpdated = (event: any) => {
+      const { groupChatId, group } = event.data;
+      if (group) {
+        setGroupChats((prev) =>
+          prev.map((g) => (g.id === groupChatId ? { ...g, ...group } : g))
+        );
+      }
     };
 
     const unsubConversation = on('conversation_update', handleConversationUpdate);
     const unsubGroup = on('group_update', handleGroupUpdate);
+    const unsubMessage = on('message', handleMessage);
+    const unsubConversationDeleted = on('conversation_deleted', handleConversationDeleted);
+    const unsubGroupDeleted = on('group_deleted', handleGroupDeleted);
+    const unsubGroupUpdated = on('group_updated', handleGroupUpdated);
 
     return () => {
       unsubConversation();
       unsubGroup();
+      unsubMessage();
+      unsubConversationDeleted();
+      unsubGroupDeleted();
+      unsubGroupUpdated();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [on]); // Only depend on 'on' - avoid re-subscribing on function changes
+  }, [on, session]);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/conversations');
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data);
+      }
+    } catch (error) {
+      console.error('Failed to load conversations');
+    }
+  };
+
+  const fetchGroupChats = async () => {
+    try {
+      const res = await fetch('/api/groupchats');
+      if (res.ok) {
+        const data = await res.json();
+        setGroupChats(data);
+      }
+    } catch (error) {
+      console.error('Failed to load group chats');
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data);
+      }
+    } catch (error) {
+      console.error('Failed to load friends');
+    }
+  };
 
   const handleStartConversation = async (friendId: number) => {
     setCreatingConversation(true);
@@ -99,9 +210,9 @@ export default function Sidebar() {
     }
   };
 
-  const getOtherUser = (conversation: any): User | null => {
+  const getOtherUser = (conversation: Conversation): User | null => {
     const userId = parseInt((session?.user as any)?.id || '0');
-    return conversation.members.find((m: any) => m.user.id !== userId)?.user || null;
+    return conversation.members.find((m) => m.user.id !== userId)?.user || null;
   };
 
   const getFriendsWithoutConversation = () => {

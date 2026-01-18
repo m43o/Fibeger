@@ -139,8 +139,7 @@ export default function NotificationBell() {
 
     const unsubscribe = on('notification', handleNotification);
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [on]); // Only depend on 'on' to avoid unnecessary re-subscriptions
+  }, [on]);
 
   return (
     <div className="relative" ref={dropdownRef}>
