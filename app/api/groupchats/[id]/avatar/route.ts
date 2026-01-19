@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { put } from "@vercel/blob";
+// import { put } from "@vercel/blob";
+import { uploadToS3, s3Enabled } from "@/app/lib/storage";
 import crypto from "crypto";
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
@@ -104,29 +105,27 @@ export async function POST(
       const ext = file.name.split(".").pop() || "jpg";
       const filename = `groups/${groupChatId}-${timestamp}.${ext}`;
 
-      // Check if Vercel Blob is configured
-      const useBlobStorage = !!process.env.BLOB_READ_WRITE_TOKEN;
+      // Check if S3/MinIO is configured
+      const useS3Storage = s3Enabled();
 
-      if (useBlobStorage) {
-        // Upload to Vercel Blob
-        const blob = await put(filename, file, {
-          access: "public",
-        });
-
-        avatarUrl = blob.url;
+      if (useS3Storage) {
+        // Upload to S3/MinIO
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        avatarUrl = await uploadToS3(filename, buffer, file.type);
 
         // Store file metadata in database
         await prisma.fileBlob.create({
           data: {
             hash: fileHash,
-            url: blob.url,
+            url: avatarUrl,
             contentType: file.type,
             size: file.size,
             uploadedBy: parseInt(session.user.id),
           },
         });
 
-        console.log(`Group avatar uploaded to Vercel Blob: ${fileHash} -> ${blob.url}`);
+        console.log(`Group avatar uploaded to S3/MinIO: ${fileHash} -> ${avatarUrl}`);
       } else {
         // Use local file storage
         const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'groups');
