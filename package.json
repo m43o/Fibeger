@@ -5,13 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/use-production-schema.js && prisma db push --accept-data-loss && prisma generate && next build",
+    "build:container": "node scripts/use-production-schema.js && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.21.1",
-    "@vercel/blob": "^2.0.0",
+    "@aws-sdk/client-s3": "^3.500.0",
     "bcryptjs": "^3.0.3",
     "next": "16.1.2",
     "next-auth": "^4.24.13",

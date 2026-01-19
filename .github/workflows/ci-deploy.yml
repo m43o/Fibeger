@@ -1,0 +1,56 @@
+name: Build and Deploy to Podman Server
+
+on:
+  push:
+    branches: [ main, mainline, master ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+          script: |
+            set -e
+            echo "Pulling image"
+            podman pull ghcr.io/${{ github.repository }}:${{ github.sha }}
+            # Update docker-compose file to use the new image tag (assumes compose file at REMOTE_COMPOSE_DIR)
+            cd ${REMOTE_COMPOSE_DIR:-/opt/fibeger} || true
+            # If using podman-compose, restart the stack
+            if command -v podman-compose >/dev/null 2>&1; then
+              podman-compose pull || true
+              podman-compose up -d --remove-orphans
+            else
+              # fallback: run podman container directly
+              podman stop fibeger || true || true
+              podman rm fibeger || true || true
+              podman run -d --name fibeger -p 3000:3000 --env-file .env --restart=always ghcr.io/${{ github.repository }}:${{ github.sha }}
+            fi

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { put } from '@vercel/blob';
+import { uploadToS3, s3Enabled } from '@/app/lib/storage';
 import { prisma } from '@/app/lib/prisma';
 import crypto from 'crypto';
 import { writeFile, mkdir } from 'fs/promises';
@@ -105,30 +105,29 @@ export async function POST(req: NextRequest) {
         const folder = formData.get('folder') as string || 'messages';
         const filename = `${folder}/${timestamp}-${randomId}.${extension}`;
 
-        // Check if Vercel Blob is configured
-        const useBlobStorage = !!process.env.BLOB_READ_WRITE_TOKEN;
+        // Check if S3/MinIO is configured
+        const useS3 = s3Enabled();
 
-        if (useBlobStorage) {
-          // Upload to Vercel Blob Storage
-          const blob = await put(filename, file, {
-            access: 'public',
-            contentType: file.type,
-          });
+        if (useS3) {
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
 
-          fileUrl = blob.url;
+          const url = await uploadToS3(filename, buffer, file.type);
+
+          fileUrl = url;
 
           // Store file metadata in database
           await prisma.fileBlob.create({
             data: {
               hash: fileHash,
-              url: blob.url,
+              url: url,
               contentType: file.type,
               size: file.size,
               uploadedBy: parseInt(session.user.id),
             },
           });
 
-          console.log(`File uploaded to Vercel Blob: ${fileHash} -> ${blob.url}`);
+          console.log(`File uploaded to S3/MinIO: ${fileHash} -> ${url}`);
         } else {
           // Use local file storage
           const uploadsDir = path.join(process.cwd(), 'public', 'uploads', folder);
