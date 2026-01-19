@@ -4,12 +4,13 @@ WORKDIR /app
 # Install build deps
 RUN apt-get update && apt-get install -y python3 build-essential && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json* prisma/ ./
-# Copy the production schema as the expected schema.prisma for Prisma
-RUN cp prisma/schema.production.prisma prisma/schema.prisma
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json* ./
+RUN npm install --legacy-peer-deps --ignore-scripts
 
 COPY . .
+
+# Rename the production schema and generate Prisma client
+RUN cp prisma/schema.production.prisma prisma/schema.prisma && npx prisma generate
 
 # Build using the container-specific script (skips prisma db push)
 ENV NODE_ENV=production
