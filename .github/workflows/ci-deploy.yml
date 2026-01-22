@@ -40,7 +40,6 @@ jobs:
           # Set the step output so ${{ steps.img.outputs.image_ref }} works:
           echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
 
-
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -69,16 +68,16 @@ jobs:
         run: sleep 5
 
       # Everything below runs on the REMOTE host via Tailscale SSH:
-      
+
       - name: Remote deploy via Tailscale SSH (Podman)
         shell: bash
         run: |
           set -euo pipefail
 
-          # Export env variables into the remote shell invocation
-          tailscale ssh deploy@${SERVER_TS_HOST} \
-            "env IMAGE_REF='${IMAGE_REF}' REMOTE_COMPOSE_DIR='${REMOTE_COMPOSE_DIR}' bash -s" <<'REMOTE_EOF'
+          # Login to GHCR on the remote - variables expanded locally into the command
+          tailscale ssh deploy@${SERVER_TS_HOST} bash -s -- <<REMOTE_EOF
           set -euo pipefail
+          echo '${GHCR_READ_PAT}' | podman login ghcr.io -u '${GHCR_USERNAME}' --password-stdin
 
           echo "Pulling image: ${IMAGE_REF}"
           podman pull "${IMAGE_REF}"
@@ -101,3 +100,5 @@ jobs:
         env:
           IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
           REMOTE_COMPOSE_DIR: ${{ env.REMOTE_COMPOSE_DIR }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_READ_PAT: ${{ secrets.GHCR_PAT }}
