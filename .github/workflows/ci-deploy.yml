@@ -75,9 +75,9 @@ jobs:
           set -euo pipefail
 
           # Login to GHCR on the remote - variables expanded locally into the command
-          tailscale ssh deploy@${SERVER_TS_HOST} bash -s <<'REMOTE_EOF'
+          tailscale ssh deploy@${SERVER_TS_HOST} bash -s <<REMOTE_EOF
           set -euo pipefail
-          echo '${GHCR_READ_PAT}' | podman login ghcr.io -u '${GHCR_USERNAME}' --password-stdin
+          echo "${GHCR_READ_PAT}" | podman login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 
           echo "Pulling image: ${IMAGE_REF}"
           podman pull "${IMAGE_REF}"
