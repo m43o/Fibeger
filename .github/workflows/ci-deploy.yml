@@ -11,8 +11,8 @@ jobs:
       contents: read
       packages: write
 
-    # outputs:
-    #   image_ref: ${{ steps.meta.outputs.image_ref }}
+    outputs:
+      image_ref: ${{ steps.img.outputs.image_ref }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,18 +26,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      # - name: Define image reference
-      #   id: meta
-      #   run: |
-      #     echo "image_ref=ghcr.io/${{ github.repository }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
       - name: Prepare lowercase image reference
         id: img
         run: |
           # ${GITHUB_REPOSITORY} is "OwnerName/RepoName"
-          REPO_LC="${GITHUB_REPOSITORY,,}"           # bash lowercasing
+          REPO_LC="${GITHUB_REPOSITORY,,}"  # bash lowercasing
+          IMAGE_REF="ghcr.io/${REPO_LC}:${GITHUB_SHA}"
+
+          # If you still want env vars for later steps in this job:
           echo "REPO_LC=$REPO_LC" >> "$GITHUB_ENV"
-          echo "IMAGE_REF=ghcr.io/${REPO_LC}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE_REF=$IMAGE_REF" >> "$GITHUB_ENV"
+
+          # Set the step output so ${{ steps.img.outputs.image_ref }} works:
+          echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
+
 
       - name: Build and push image
         uses: docker/build-push-action@v6
