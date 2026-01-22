@@ -1,0 +1,57 @@
+# Cloudflare Tunnel Configuration for Fibeger
+# Copy this file to: /etc/cloudflared/config.yml
+# 
+# Steps to set up:
+# 1. Authenticate: cloudflared tunnel login
+# 2. Create tunnel: cloudflared tunnel create fibeger
+# 3. Note the tunnel ID from the output
+# 4. Copy this file to /etc/cloudflared/config.yml and update values
+# 5. Create DNS records: cloudflared tunnel route dns fibeger fibeger.com
+# 6. Install service: sudo cloudflared service install
+# 7. Start service: sudo systemctl enable --now cloudflared
+
+# Replace YOUR_TUNNEL_ID with the actual tunnel ID from step 2
+tunnel: 7c5c8b57-53a9-4db3-b124-9e86a19bc40d
+
+# Replace YOUR_USERNAME with your server username
+# The credentials file is created automatically when you create the tunnel
+credentials-file: /home/root/.cloudflared/7c5c8b57-53a9-4db3-b124-9e86a19bc40d.json
+
+# Ingress rules - define how traffic is routed
+ingress:
+  # Main app (fibeger.com)
+  - hostname: fibeger.com
+    service: http://127.0.0.1:8080
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      tlsTimeout: 10s
+      keepAliveTimeout: 90s
+      keepAliveConnections: 100
+  
+  # MinIO console subdomain (minio.fibeger.com)
+  - hostname: minio.fibeger.com
+    service: http://127.0.0.1:8080
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      tlsTimeout: 10s
+      keepAliveTimeout: 90s
+      keepAliveConnections: 100
+  
+  # Optional: pgAdmin subdomain (uncomment if you want external access)
+  # - hostname: pgadmin.fibeger.com
+  #   service: http://127.0.0.1:8080
+  #   originRequest:
+  #     noTLSVerify: true
+  
+  # Catch-all rule (required, must be last)
+  - service: http_status:404
+
+# Optional: Logging configuration
+# Uncomment to enable detailed logging
+# loglevel: debug
+# logfile: /var/log/cloudflared.log
+
+# Optional: Metrics server (for monitoring)
+# metrics: 127.0.0.1:2000

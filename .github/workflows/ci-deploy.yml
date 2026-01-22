@@ -75,19 +75,24 @@ jobs:
           set -euo pipefail
 
           # Login to GHCR on the remote - variables expanded locally into the command
-          tailscale ssh deploy@${SERVER_TS_HOST} bash -s -- <<REMOTE_EOF
+          tailscale ssh deploy@${SERVER_TS_HOST} bash -s <<'REMOTE_EOF'
           set -euo pipefail
-          echo '${GHCR_READ_PAT}' | podman login ghcr.io -u '${GHCR_USERNAME}' --password-stdin
+          echo "${GHCR_READ_PAT}" | podman login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 
           echo "Pulling image: ${IMAGE_REF}"
           podman pull "${IMAGE_REF}"
 
+          cd "${REMOTE_COMPOSE_DIR}"
+          
+          # Update the IMAGE_REF in .env file
+          sed -i "s|^IMAGE_REF=.*|IMAGE_REF=${IMAGE_REF}|" .env
+          
           if command -v podman-compose >/dev/null 2>&1; then
-            cd "${REMOTE_COMPOSE_DIR}"
+            echo "Using podman-compose to deploy stack..."
             podman-compose pull || true
             podman-compose up -d --remove-orphans
           else
-            echo "Restarting single Podman container: fibeger"
+            echo "podman-compose not found, using podman directly"
             podman stop fibeger || true
             podman rm fibeger || true
             podman run -d --name fibeger \
@@ -102,3 +107,4 @@ jobs:
           REMOTE_COMPOSE_DIR: ${{ env.REMOTE_COMPOSE_DIR }}
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_READ_PAT: ${{ secrets.GHCR_PAT }}
+          SERVER_TS_HOST: ${{ env.SERVER_TS_HOST }}
