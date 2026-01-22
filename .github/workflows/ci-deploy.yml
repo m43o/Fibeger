@@ -95,6 +95,9 @@ jobs:
           # Update the IMAGE_REF in .env file
           sed -i "s|^IMAGE_REF=.*|IMAGE_REF=${IMAGE_REF}|" .env
 
+          # Export IMAGE_REF so podman-compose can use it
+          export IMAGE_REF="${IMAGE_REF}"
+
           if command -v podman-compose >/dev/null 2>&1; then
             echo "Using podman-compose to deploy stack..."
             podman-compose pull || true
