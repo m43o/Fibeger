@@ -184,8 +184,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ files: uploadedFiles });
   } catch (error) {
     console.error('File upload error:', error);
+    
+    // Provide more detailed error message for debugging
+    let errorMessage = 'Internal server error';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Failed to upload file',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined 
+      },
       { status: 500 }
     );
   }

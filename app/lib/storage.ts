@@ -21,16 +21,27 @@ export async function uploadToS3(filename: string, data: Buffer, contentType: st
   const bucket = process.env.S3_BUCKET;
   if (!bucket) throw new Error('S3_BUCKET not set');
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: filename,
-      Body: data,
-      ContentType: contentType,
-      // Removed ACL: 'public-read' as it's deprecated in AWS S3 v3.
-      // For public access, configure bucket policy or use presigned URLs instead.
-    })
-  );
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: filename,
+        Body: data,
+        ContentType: contentType,
+        // Removed ACL: 'public-read' as it's deprecated in AWS S3 v3.
+        // For public access, configure bucket policy or use presigned URLs instead.
+      })
+    );
+  } catch (error) {
+    console.error('S3 upload error details:', {
+      bucket,
+      filename,
+      endpoint: process.env.S3_ENDPOINT,
+      region: process.env.S3_REGION,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new Error(`Failed to upload to S3: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   // Construct public URL. Allow override via S3_PUBLIC_URL for custom domains. 
   if (process.env.S3_PUBLIC_URL) {

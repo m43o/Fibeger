@@ -687,10 +687,6 @@ export default function ProfilePage() {
                       }
                       return null;
                     })()}
-                    
-                    <p className="text-sm mt-4 font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                      {profile.email}
-                    </p>
                   </div>
 
                   <div className="w-full sm:w-auto flex flex-col gap-3">

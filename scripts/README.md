@@ -32,6 +32,36 @@ chmod +x setup-fedora-server.sh
 
 ---
 
+### `setup-minio.sh`
+Script to initialize MinIO bucket and set proper permissions for file uploads.
+
+**What it does:**
+- Creates the `fibeger` bucket in MinIO
+- Sets public read policy on the bucket (required for serving uploaded files)
+- Uses the MinIO client (mc) via Docker
+
+**Usage:**
+```bash
+# SSH into your server
+ssh user@your-server
+
+# Navigate to the project directory
+cd /opt/fibeger
+
+# Run the setup script
+chmod +x scripts/setup-minio.sh
+./scripts/setup-minio.sh
+```
+
+**When to use:**
+- After initial deployment when file uploads fail with 500 errors
+- If you need to recreate the bucket
+- When setting up a new MinIO instance
+
+**Note:** This script reads credentials from `/opt/fibeger/.env`
+
+---
+
 ### `cloudflared-config.example.yml`
 Template configuration file for Cloudflare Tunnel.
 
