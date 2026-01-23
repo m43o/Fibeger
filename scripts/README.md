@@ -111,6 +111,144 @@ This is used by the Docker build process and typically doesn't need to be run ma
 
 ---
 
+### `ensure-services-on-boot.sh`
+Configures all Fibeger services to automatically start on server reboot.
+
+**What it does:**
+- Enables Tailscale to start on boot
+- Enables Cloudflared to start on boot
+- Enables user lingering (critical for rootless Podman)
+- Creates systemd service for Podman containers
+- Enables Podman socket
+- Generates `fibeger-stack.service` for container management
+
+**Usage:**
+```bash
+# SSH into your server
+ssh user@your-server
+
+# Navigate to deployment directory
+cd /opt/fibeger
+
+# Run the script (one-time setup)
+chmod +x scripts/ensure-services-on-boot.sh
+bash scripts/ensure-services-on-boot.sh
+```
+
+**When to use:**
+- After initial deployment (run once)
+- After system upgrades that affect systemd
+- If containers don't start after reboot
+
+**Important:** This enables user lingering, which allows your containers to run even when you're not logged in.
+
+---
+
+### `verify-after-reboot.sh`
+Comprehensive health check script to verify all services are running correctly after a server reboot.
+
+**What it does:**
+- Checks Tailscale status and connection
+- Checks Cloudflared status and tunnel connectivity
+- Verifies user lingering is enabled
+- Checks Podman socket
+- Verifies all containers are running
+- Tests container health checks
+- Tests local network connectivity (Caddy)
+- Tests external access (public domain)
+- Shows recent container logs
+- Provides actionable fixes for any issues found
+
+**Usage:**
+```bash
+# After server reboot (wait 2-3 minutes first)
+bash /opt/fibeger/scripts/verify-after-reboot.sh
+
+# Or from anywhere
+ssh user@your-server "bash /opt/fibeger/scripts/verify-after-reboot.sh"
+```
+
+**Exit codes:**
+- 0: All checks passed
+- 1: Critical errors detected
+
+**When to use:**
+- After every server reboot
+- During troubleshooting
+- As part of monitoring/alerting systems
+- Before deployments to verify system health
+
+---
+
+### `setup-monitoring.sh`
+Interactive script to set up automated health monitoring for Fibeger services.
+
+**What it does:**
+- Creates a monitoring script that runs periodic health checks
+- Sets up automated service recovery (restarts services if they fail)
+- Configures scheduling via cron or systemd timer
+- Creates log directory for health check results
+- Tracks failures and successful recoveries
+- Optional email alerts (if mail is configured)
+
+**Usage:**
+```bash
+# SSH into your server
+ssh user@your-server
+
+# Navigate to deployment directory
+cd /opt/fibeger
+
+# Run the setup script
+chmod +x scripts/setup-monitoring.sh
+bash scripts/setup-monitoring.sh
+
+# Follow the interactive prompts to choose:
+# - Monitoring frequency (5min, 15min, 1hr, custom)
+# - Cron vs systemd timer
+```
+
+**Monitoring frequencies:**
+- Production: Every 5 minutes (recommended)
+- Low-traffic: Every 15 minutes
+- Development: Every hour
+
+**Features:**
+- Automatic health checks at configured intervals
+- Auto-restart failed services
+- Keeps 7 days of health check logs
+- Logs all failures and recoveries
+- Optional email notifications
+
+**After setup, view logs:**
+```bash
+# View recent health checks
+ls -lh /var/log/fibeger/
+
+# View failures
+cat /var/log/fibeger/failures.log
+
+# View successful recoveries
+cat /var/log/fibeger/recoveries.log
+
+# View latest health check
+cat /var/log/fibeger/health-check-*.log | tail -100
+```
+
+**Manage monitoring:**
+```bash
+# If using systemd timer:
+systemctl --user status fibeger-monitor.timer
+systemctl --user stop fibeger-monitor.timer
+systemctl --user disable fibeger-monitor.timer
+
+# If using cron:
+crontab -l  # View cron jobs
+crontab -e  # Edit cron jobs
+```
+
+---
+
 ## Quick Start
 
 For a complete deployment, follow this order:
@@ -183,7 +321,22 @@ scp Caddyfile user@your-server:/opt/fibeger/
 # Replace: IMAGE_REF=ghcr.io/YOUR_GITHUB_USERNAME/fibeger:latest
 ```
 
-### 6. Deploy (Local)
+### 6. Configure Auto-Start on Boot (Fedora Server)
+```bash
+ssh user@your-server
+cd /opt/fibeger
+
+# Configure all services to start on boot
+bash scripts/ensure-services-on-boot.sh
+
+# This enables:
+# - Tailscale service
+# - Cloudflared service
+# - User lingering
+# - Podman containers via systemd
+```
+
+### 7. Deploy (Local)
 ```bash
 # Push to trigger deployment
 git push origin main
@@ -192,7 +345,7 @@ git push origin main
 # Go to: https://github.com/YOUR_USERNAME/Fibeger/actions
 ```
 
-### 7. Verify (Fedora Server)
+### 8. Verify (Fedora Server)
 ```bash
 ssh user@your-server
 cd /opt/fibeger
@@ -208,6 +361,27 @@ curl -H "Host: fibeger.com" http://127.0.0.1:8080
 
 # Test via Cloudflare
 curl https://fibeger.com
+
+# Run comprehensive health check
+bash scripts/verify-after-reboot.sh
+```
+
+### 9. Test Auto-Start (Optional but Recommended)
+```bash
+# On server, test that everything restarts correctly
+ssh user@your-server
+
+# Initiate reboot
+sudo reboot
+
+# Wait 2-3 minutes, then SSH back in
+ssh user@your-server
+
+# Verify everything started automatically
+bash /opt/fibeger/scripts/verify-after-reboot.sh
+
+# Test website
+curl -I https://fibeger.com
 ```
 
 ---

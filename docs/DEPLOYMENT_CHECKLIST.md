@@ -88,6 +88,13 @@ Use this checklist to ensure all steps are completed for deployment.
 - [ ] Database migrations run (usually automatic via entrypoint.sh)
 - [ ] Can connect to pgAdmin: http://localhost (if port exposed, or via Cloudflare)
 
+### Auto-Start Configuration
+- [ ] Run auto-start setup: `bash /opt/fibeger/scripts/ensure-services-on-boot.sh`
+- [ ] Verify user lingering enabled: `loginctl show-user $USER | grep Linger=yes`
+- [ ] Verify fibeger-stack service enabled: `systemctl --user is-enabled fibeger-stack.service`
+- [ ] Verify Tailscale enabled: `systemctl is-enabled tailscaled`
+- [ ] Verify Cloudflared enabled: `systemctl is-enabled cloudflared`
+
 ## CI/CD Verification
 
 ### GitHub Actions
@@ -122,6 +129,19 @@ Use this checklist to ensure all steps are completed for deployment.
 - [ ] Caddy running: `podman-compose ps caddy`
 - [ ] App container running: `podman-compose ps app`
 - [ ] Can curl locally: `curl -H "Host: fibeger.com" http://127.0.0.1:8080`
+
+## Reboot Testing
+
+### Test Auto-Start After Reboot
+- [ ] Initiate test reboot: `sudo reboot`
+- [ ] Wait 2-3 minutes after reboot
+- [ ] Run verification script: `bash /opt/fibeger/scripts/verify-after-reboot.sh`
+- [ ] All services started automatically:
+  - [ ] Tailscale connected
+  - [ ] Cloudflared connected
+  - [ ] All 5 containers running (db, minio, pgadmin, app, caddy)
+  - [ ] Website accessible: `curl -I https://fibeger.com`
+- [ ] Test deployment still works: Push to main branch and verify GitHub Actions succeeds
 
 ## Post-Deployment
 
