@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import FlagEmoji from '@/app/components/FlagEmoji';
 import personalityTestData from '@/app/lib/personalityTest.json';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGithub, faInstagram, faLinkedin, faSteam, faXTwitter } from '@fortawesome/free-brands-svg-icons';
 
 interface UserProfile {
   id: number;
@@ -305,13 +307,13 @@ export default function UserProfilePage() {
                     <div className="flex items-center gap-4 mt-4 flex-wrap text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
                       {profile.city && (
                         <div className="flex items-center gap-1">
-                          <span>📍</span>
+                          <span className="material-symbols-outlined" aria-hidden="true">location_on</span>
                           <span>{profile.city}</span>
                         </div>
                       )}
                       {profile.birthday && (
                         <div className="flex items-center gap-1">
-                          <span>🎂</span>
+                          <span className="material-symbols-outlined" aria-hidden="true">cake</span>
                           <span>{profile.birthday}</span>
                         </div>
                       )}
@@ -323,12 +325,12 @@ export default function UserProfilePage() {
                           className="flex items-center gap-1 hover:underline"
                           style={{ color: profile.themeColor || 'var(--accent)' }}
                         >
-                          <span>🔗</span>
+                          <span className="material-symbols-outlined" aria-hidden="true">link_2</span>
                           <span>{profile.website}</span>
                         </a>
                       )}
                       <div className="flex items-center gap-1">
-                        <span>📅</span>
+                      <span className="material-symbols-outlined" aria-hidden="true">calendar_month</span>
                         <span>Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -343,27 +345,27 @@ export default function UserProfilePage() {
                             <div className="flex items-center gap-4 mt-4">
                               {links.twitter && (
                                 <a href={`https://twitter.com/${links.twitter}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition" title="Twitter/X">
-                                  𝕏
+                                  <FontAwesomeIcon icon={faXTwitter} inverse />
                                 </a>
                               )}
                               {links.github && (
                                 <a href={`https://github.com/${links.github}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition" title="GitHub">
-                                  🐙
+                                  <FontAwesomeIcon icon={faGithub} inverse />
                                 </a>
                               )}
                               {links.instagram && (
                                 <a href={`https://instagram.com/${links.instagram}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition" title="Instagram">
-                                  📷
+                                  <FontAwesomeIcon icon={faInstagram} inverse />
                                 </a>
                               )}
                               {links.linkedin && (
                                 <a href={`https://linkedin.com/in/${links.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition" title="LinkedIn">
-                                  💼
+                                  <FontAwesomeIcon icon={faLinkedin} inverse />
                                 </a>
                               )}
                               {profile.steamUsername && (
                                 <a href={`https://steamcommunity.com/id/${profile.steamUsername}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition" title="Steam">
-                                  🎮
+                                  <FontAwesomeIcon icon={faSteam} inverse />
                                 </a>
                               )}
                             </div>
