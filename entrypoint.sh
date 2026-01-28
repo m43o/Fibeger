@@ -1,3 +1,5 @@
+# THIS FILE IS DEPRECATED AFTER CHANGING TO BUN. DELETE IT AFTER TESTING.
+
 #!/usr/bin/env bash
 set -euo pipefail
 

@@ -1,0 +1,45 @@
+
+# Node & Bun
+node_modules/
+.bun/
+bun.lock
+bun.lockb
+
+# Next.js build artifacts
+.next/
+out/
+
+# Prisma cache & generated client (optional; if you copy during build, keep ignored here)
+.prisma/
+prisma/generated/
+
+# VCS & CI
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Docker / Compose
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.DS_Store
+
+# Logs & coverage
+*.log
+logs/
+coverage/
+
+# TypeScript & build outputs (if any)
+dist/
+build/

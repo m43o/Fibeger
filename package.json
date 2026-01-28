@@ -2,17 +2,28 @@
   "name": "fibeger",
   "version": "0.2.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "node scripts/use-production-schema.js && prisma db push --accept-data-loss && prisma generate && next build",
-    "build:container": "node scripts/use-production-schema.js && prisma generate && next build",
-    "start": "next start",
-    "lint": "eslint",
-    "postinstall": "prisma generate"
+  "type": "module",
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.3"
   },
+
+  
+  "scripts": {
+    "dev": "bun --bun next dev",
+    "start": "node server.js",
+    "build": "bun --bun next build",
+    "build:container": "bun --bun next build",
+    "prisma:prepare": "cp prisma/schema.production.prisma prisma/schema.prisma || true",
+    "prisma:generate": "npm run prisma:prepare && bunx --bun prisma generate",
+    "prisma:db-push": "bunx --bun prisma db push",
+    "lint": "eslint --max-warnings=0 .",
+    "typecheck": "tsc --noEmit"
+  },
+
   "dependencies": {
-    "@prisma/client": "^5.21.1",
-    "@aws-sdk/client-s3": "^3.500.0",
+    "@prisma/client": "^5.22.0",
+    "@aws-sdk/client-s3": "^3.978.0",
     "bcryptjs": "^3.0.3",
     "next": "16.1.2",
     "next-auth": "^4.24.13",
@@ -21,16 +32,16 @@
     "twemoji": "^14.0.2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.18",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/twemoji": "^13.1.1",
-    "eslint": "^9",
+    "@types/node": "^20.19.30",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@types/twemoji": "^13.1.2",
+    "eslint": "^9.39.2",
     "eslint-config-next": "16.1.2",
-    "prisma": "^5.21.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "prisma": "^5.22.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
   }
 }
